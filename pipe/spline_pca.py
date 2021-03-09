@@ -9,13 +9,13 @@ a library of derived PSFs approximated by splines.
 
 """
 import numpy as np
-import reduce
+from .reduce import aperture
 from scipy.linalg import eigh
 from scipy.interpolate import BivariateSpline
 import copy
 
 
-class SplinePCA():
+class SplinePCA:
     """Class defining methods that manipulate a spline PSF library
     and produces a library of principal PSF components by eigen 
     decomposition of the spline coefficients, making use of the fact
@@ -169,7 +169,7 @@ def phot(psf_fun, radius=50, sample=10):
     """
     x = np.linspace(-radius, radius, 2*radius*sample+1)
     frame = np.zeros((len(x), len(x)))
-    apt = reduce.aperture(frame.shape, radius*sample)
+    apt = aperture(frame.shape, radius * sample)
     return np.sum(psf_fun(x,x)*apt)/sample**2
 
 
@@ -183,4 +183,3 @@ def phot_abs(psf_fun, radius=50, sample=10):
 
 if __name__=='__main__':
     print('Do not run')
-        

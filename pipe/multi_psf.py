@@ -9,8 +9,8 @@ routine for binary fit.
 
 """
 import numpy as np
-import psf as Psf
 import multiprocessing as mp
+from .psf import fit as psf_fit, fit_binary as psf_fit_binary
 
 
 def fit(psf_list, data_cube, noise_cube, mask, xc, yc,
@@ -52,7 +52,7 @@ def fit(psf_list, data_cube, noise_cube, mask, xc, yc,
                 fitrad, krn_scl, krn_rad, bg_fit))
     
     with mp.Pool(nthreads0) as p:
-        outparam = p.starmap(Psf.fit, inparam)
+        outparam = p.starmap(psf_fit, inparam)
 
     m = 0
     for n in range(Ndata):
@@ -100,7 +100,7 @@ def fit_binary(psf_list0, psf_list1, data_cube, noise_cube, mask, xc0, yc0,
                 psfrad, fitrad, krn_scl, krn_rad))
     
     with mp.Pool(nthreads0) as p:
-        outparam = p.starmap(Psf.fit_binary, inparam)
+        outparam = p.starmap(psf_fit_binary, inparam)
 
     m = 0
     for n in range(Ndata):

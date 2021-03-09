@@ -11,7 +11,7 @@ Collection of tools to manipulate CHEOPS data.
 import warnings
 import numpy as np
 from scipy import interpolate
-import cent
+from .cent import flux as cent_flux
 
 
 def resample_imagette_time(sa_time, nexp):
@@ -352,9 +352,9 @@ def rough_contrast(cube, radius=25, mask=None):
     to determine of source is missing from image or not.
     """
     if mask is None:
-        xc, yc = cent.flux(np.abs(cube))
+        xc, yc = cent_flux(np.abs(cube))
     else:
-        xc, yc = cent.flux(np.abs(cube)*mask)
+        xc, yc = cent_flux(np.abs(cube)*mask)
     apt_in = cube_apt(cube.shape, radius, xc, yc)
     apt_out = (apt_in==0)
     if mask is not None:

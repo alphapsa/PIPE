@@ -11,7 +11,8 @@ observed by CHEOPS, using an empirical PSF.
 import numpy as np
 from astropy.io import fits
 
-class star_bg():
+
+class star_bg:
     """Reads catalogue data on background stars and produces
     images of stars, to be removed from observations. Adjusts PSFs with
     rotational blurring and computes smearing trails.
@@ -56,7 +57,6 @@ class star_bg():
         """
         return rotate_position(self.xpos[entry], self.ypos[entry], rolldeg)
 
-
     def brightest(self, radius):
         """Returns flux of brightest background star in radius, in
         units of target brightness
@@ -66,7 +66,6 @@ class star_bg():
         if np.sum(ind) > 0:
             return np.max(self.fscale[1:][ind])
         return 0
-            
 
     def image(self, x0, y0, rolldeg, psf_fun, shape=None,
               target=1, limflux=0, single_id=None, max_psf_rad=70):
@@ -126,7 +125,6 @@ class star_bg():
             ret_img[j0:j1,i0:i1] += self.fscale[n] * psf_mat
         return ret_img
 
-    
     def rotblur(self, x0, y0, rolldeg, blurdeg, psf_fun,
                 oversample=1, shape=None, target=1, limflux=1e-3,
                 single_id=None, max_psf_rad=70):
@@ -147,7 +145,6 @@ class star_bg():
                                   max_psf_rad=max_psf_rad)/N
         return ret_img
 
-    
     def smear(self, x0, y0, rolldeg, blurdeg, psf_fun, oversample=1,
               shape=None, limflux=1e-2, max_psf_rad=70):
         """Computes the smearing trail for all stars, including target.
@@ -178,7 +175,3 @@ def derotate_position(xroll, yroll, rolldegs):
     roll angle (in degrees)
     """
     return rotate_position(xroll, yroll, -rolldegs)
-
-    
-    
-        

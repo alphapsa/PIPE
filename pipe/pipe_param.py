@@ -9,10 +9,10 @@ default values. Some configuration (for data filepaths) is also
 present here, but should be moved into a configuration file.
 """
 import os
-import pipe_config as pconf
+from .pipe_config import data_root, ref_lib_path
 
 
-class PipeParam():
+class PipeParam:
     """ PipeParam keeps all parameters relevant for the extraction, with
     default values given for most.
     """
@@ -26,7 +26,7 @@ class PipeParam():
                                  # subdirectory with visits
         self.visit = visit       # Name of visit; also name of
                                  # subdirectory with data                                
-        self.datapath = os.path.join(pconf.data_root, name, visit) # Directory path of data
+        self.datapath = os.path.join(data_root, name, visit) # Directory path of data
                                                         # from single visit
         if version is None:      # Integer version of output files
             self.version = self.find_version()
@@ -37,7 +37,7 @@ class PipeParam():
         self.outdir = outdir
         
         self.file_log = os.path.join(outdir, 'logfile.txt')
-        self.calibpath = pconf.ref_lib_path  # Directory where calibration files are located
+        self.calibpath = ref_lib_path  # Directory where calibration files are located
         self.define_filenames()  # Find relevant filenames in data paths
         
         self.Teff = None         # Effective temperature of target, used for 

@@ -6,8 +6,12 @@ Created on Mon Mar  8 13:43:28 2021
 """
 
 import os
-ref_lib_path = os.path.join(os.path.dirname(__file__), 'ref_lib_data')
-data_root = os.path.join(os.path.dirname(__file__), 'data_root')
+ref_lib_path = os.path.join(
+    os.path.dirname(__file__), os.path.pardir, 'ref_lib_data'
+)
+data_root = os.path.join(
+    os.path.dirname(__file__), os.path.pardir, 'data_root'
+)
 
 if not os.path.exists(ref_lib_path):
     print("No reference data found.")

@@ -10,9 +10,9 @@ photometry.
 
 """
 import numpy as np
-import pipe_config as pconf
 import os
-import read
+from .read import lightcurve
+from .pipe_config import data_root
 
 
 def mad(series):
@@ -165,13 +165,13 @@ def sigma_clip(data, clip=5, niter=5):
 def load_lc(name, visit, version=0, postfix=''):
     """Load lightcurve, returns dict data structure
     """
-    filename = os.path.join(pconf.data_root,
+    filename = os.path.join(data_root,
                             name,
                             visit,
                             'Outdata',
                             '{:05d}'.format(version),
                             f'{name}_{visit}{postfix}.fits')
-    return read.lightcurve(filename)
+    return lightcurve(filename)
 
 
 def load_sa(name, visit, version=0, postfix=''):
@@ -206,7 +206,7 @@ def load_drp(name, visit, desc='DEFAULT'):
     """Reads lightcurve extracted by the CHEOPS Data Reduction Pipeline.
     Returns DRP dict, if found.
     """
-    datapath = os.path.join(pconf.data_root, name, visit)
+    datapath = os.path.join(data_root, name, visit)
     def find_file(substring):
         for file in os.listdir(datapath):
             if substring in file:
@@ -214,4 +214,4 @@ def load_drp(name, visit, desc='DEFAULT'):
         raise Exception(f'[load_drp] Error: \"{substring}\" not found')
 
     filename = find_file('SCI_COR_Lightcurve-{:s}'.format(desc))
-    return read.lightcurve(filename)
+    return lightcurve(filename)

@@ -13,8 +13,6 @@ on:
       - main
 
 jobs:
-  # Github Actions supports ubuntu, windows, and macos virtual environments:
-  # https://help.github.com/en/actions/reference/virtual-environments-for-github-hosted-runners
   ci_tests:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}

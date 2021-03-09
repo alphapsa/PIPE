@@ -11,8 +11,8 @@ Worker functions for multi_psf. Fit known PSFs to data.
 import numpy as np
 from numpy.linalg import lstsq
 from scipy.optimize import nnls
-from reduce import coo_mat
-from spline_pca import psf_integral
+from pipe.reduce import coo_mat
+from .spline_pca import psf_integral
 
 def fit(psf_list, frame, noise, mask, xc, yc, 
                 radius=50, krn_scl=0.3,

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Thu Mar  5 14:25:48 2020
 
@@ -13,10 +11,10 @@ The more computation intensive PSF centering are called from
 multi-threaded routines in the multi_cent module.
 """
 import numpy as np
-import reduce
 from scipy.optimize import minimize
 import warnings
 
+__all__ = ['flux', 'psf', 'binary_psf', 'binary_psf_fix']
 
 def flux(cube):
     """Compute center of pixel values for cube of rectangular 
@@ -35,9 +33,11 @@ def psf(psf_spline, frame, noise, xc, yc,
     """Use a PSF to find the best matching centre in a frame.
     Uses noise frame to clip bad pixels.
     """
+    from .reduce import coo_mat
+
     c_iter = 4
     clip = 10
-    xmat, ymat = reduce.coo_mat(frame.shape, xc, yc)
+    xmat, ymat = coo_mat(frame.shape, xc, yc)
     xcoo =  np.arange(frame.shape[0]) - xc
     ycoo =  np.arange(frame.shape[1]) - yc
     aperture0 = xmat**2+ymat**2 <= radius**2
@@ -76,8 +76,8 @@ def binary_psf(psf_spline, frame, noise, xc0, yc0, xc1, yc1,
     """
     c_iter = 4
     clip = 10
-    xmat0, ymat0 = reduce.coo_mat(frame.shape, xc0, yc0)
-    xmat1, ymat1 = reduce.coo_mat(frame.shape, xc1, yc1)
+    xmat0, ymat0 = coo_mat(frame.shape, xc0, yc0)
+    xmat1, ymat1 = coo_mat(frame.shape, xc1, yc1)
     xcoo0 =  np.arange(frame.shape[0]) - xc0
     ycoo0 =  np.arange(frame.shape[1]) - yc0
     xcoo1 =  np.arange(frame.shape[0]) - xc1
@@ -123,8 +123,8 @@ def binary_psf_fix(psf_spline, frame, noise, xc0, yc0, dx, dy,
     """
     c_iter = 4
     clip = 10
-    xmat0, ymat0 = reduce.coo_mat(frame.shape, xc0, yc0)
-    xmat1, ymat1 = reduce.coo_mat(frame.shape, xc0+dx, yc0+dy)
+    xmat0, ymat0 = coo_mat(frame.shape, xc0, yc0)
+    xmat1, ymat1 = coo_mat(frame.shape, xc0+dx, yc0+dy)
     xcoo0 =  np.arange(frame.shape[0]) - xc0
     ycoo0 =  np.arange(frame.shape[1]) - yc0
     xcoo1 =  np.arange(frame.shape[0]) - xc0 - dx
