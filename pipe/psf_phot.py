@@ -312,15 +312,9 @@ class PsfPhot:
         return bgfact
 
 
-    def process_eigen_sa(self, klip=None, niter=2, clip=15):
+    def process_eigen_sa(self):
         """Extract photometry from all subarrays by producing best-fit
-        PSFs from the PSF eigen library. klip is the number of principal
-        components of the PSF library that should be used (limited by the
-        number of avalable PCs). niter is the number of iterations that should
-        be used when fitting PSF and sigma-clipping deviating pixels (e.g.
-        cosmic rays), clip is the clipping factor that should be applied.
-        A higher clipping factor should be used for unreliable estimates
-        of the expected STD, e.g. due to poor fits. The return value are
+        PSFs from the PSF eigen library. The return value are
         scale - fitted scale of the PSF
         bg - fitted background
         flux - computed flux from noise-weighted integration
@@ -332,6 +326,8 @@ class PsfPhot:
         """
         self.mess('--- Start processing subarray data with eigen')
         sa_noise = np.maximum(self.sa_noise, self.sa_raw_noise)
+        klip = self.pps.klip
+        niter = self.pps.sigma_clip_niter
         if klip is None:
             klip = len(self.eigen_psf)
         else:
@@ -346,9 +342,6 @@ class PsfPhot:
             niter += 1
         else:
             iter_bg = False
-
-        self.mess('klip={:d}, niter={:d}, sigma_clip={:.1f}'.format(
-            klip, niter, clip))
 
         sa_psfapt = aperture(self.sa_debias[0].shape, self.pps.sa_psfrad)
 
@@ -371,7 +364,7 @@ class PsfPhot:
             scale = np.interp(t, t0, scale0)
             bg = np.interp(t, t0, bg0)
 
-            self.make_mask_cube_sa(psf_cube, radius=self.pps.sa_psfrad, clip=clip)
+            self.make_mask_cube_sa(psf_cube, radius=self.pps.sa_psfrad, clip=self.pps.sigma_clip)
             self.sa_mask_cube[sel==0] = self.sa_mask
             res = self.sa_sub - psf_cube*sa_psfapt - bg[:,None,None]
             if self.pps.remove_static:
@@ -420,15 +413,9 @@ class PsfPhot:
         return  scale, bg, flux, err, sel, w
 
 
-    def process_eigen_im(self, klip=None, niter=2, clip=15):
+    def process_eigen_im(self):
         """Extract photometry from all imagettes by producing best-fit
-        PSFs from the PSF eigen library. klip is the number of principal
-        components of the PSF library that should be used (limited by the
-        number of avalable PCs). niter is the number of iterations that should
-        be used when fitting PSF and sigma-clipping deviating pixels (e.g.
-        cosmic rays), clip is the clipping factor that should be applied.
-        A higher clipping factor should be used for unreliable estimates
-        of the expected STD, e.g. due to poor fits. The return value are
+        PSFs from the PSF eigen library. The return value are
         scale - fitted scale of the PSF
         bg - fitted background
         flux - computed flux from noise-weighted integration
@@ -439,6 +426,8 @@ class PsfPhot:
         integrated 'flux'.
         """
         self.mess('--- Start processing imagette data with eigen')
+        klip = self.pps.klip
+        niter = self.pps.sigma_clip_niter
         if klip is None:
             klip = len(self.eigen_psf)
         else:
@@ -453,9 +442,6 @@ class PsfPhot:
             niter += 1
         else:
             iter_bg = False
-
-        self.mess('klip={:d}, niter={:d}, sigma_clip={:.1f}'.format(
-            klip, niter, clip))
 
         for n in range(niter):
             self.mess('--- Iteration im {:d}/{:d}'.format(n+1, niter))
@@ -478,7 +464,7 @@ class PsfPhot:
             scale = np.interp(t, t0, scale0)
             bg = np.interp(t, t0, bg0)
             
-            self.make_mask_cube_im(psf_cube, clip=clip)
+            self.make_mask_cube_im(psf_cube, clip=self.pps.sigma_clip)
             self.im_mask_cube[sel==0] = self.im_mask
             res = self.im_sub - psf_cube - bg[:,None,None]
             if self.pps.remove_static:
@@ -1504,24 +1490,22 @@ class PsfPhot:
             self.pps.init_flux_ratio = self.starcat.fscale[1]
 
 
-    def process_binary_sa(self, klip=None, niter=2, sigma_clip=15):
+    def process_binary_sa(self):
         """
         """
         self.mess('--- Start processing subarray binary data with eigen')
         sa_noise = np.maximum(self.sa_noise, self.sa_raw_noise)
+        klip = self.pps.klip
         if klip is None:
             klip = len(self.eigen_psf)
         else:
             klip = min(klip, len(self.eigen_psf))
         sel = self.sa_cent_sel
         
-        self.mess('klip={:d}, niter={:d}, sigma_clip={:.1f}, f_ratio={:.3f}'.format(
-            klip, niter, sigma_clip, self.pps.init_flux_ratio))
-        
         self.centre_binary(self.psf)
         
-        for n in range(niter):
-            self.mess('--- Iteration binary sa {:d}/{:d}'.format(n+1, niter))
+        for n in range(self.pps.sigma_clip_niter):
+            self.mess('--- Iteration binary sa {:d}/{:d}'.format(n+1, self.pps.sigma_clip_niter))
 
             psf_cube00, psf_cube10, scale00, scale10, bg0, w00, w10 = multi_psf_fit_binary(
                             self.eigen_psf0[:klip],
@@ -1545,7 +1529,8 @@ class PsfPhot:
             scale0 = np.interp(t, t0, scale00)
             scale1 = np.interp(t, t0, scale10)
             bg = np.interp(t, t0, bg0)
-            self.make_mask_cube_sa(psf_cube0+psf_cube1, radius=self.pps.sa_psfrad, clip=sigma_clip)
+            self.make_mask_cube_sa(psf_cube0+psf_cube1, radius=self.pps.sa_psfrad,
+                                   clip=self.pps.sigma_clip)
             self.sa_mask_cube[sel==0] = self.sa_mask
             res = self.sa_sub - (psf_cube0+psf_cube1) - bg[:,None,None]
             if self.pps.remove_static:
@@ -1576,24 +1561,22 @@ class PsfPhot:
         return psf_cube0, psf_cube1, bg + self.sa_bg
 
 
-    def process_binary_im(self, klip=None, niter=2, sigma_clip=15):
+    def process_binary_im(self):
         self.mess('--- Start processing imagette binary data with eigen')
         im_noise = np.maximum(self.im_noise, self.im_raw_noise)
+        klip = self.pps.klip
         if klip is None:
             klip = len(self.eigen_psf)
         else:
             klip = min(klip, len(self.eigen_psf))
         sel = self.im_cent_sel
         
-        self.mess('klip={:d}, niter={:d}, sigma_clip={:.1f}'.format(
-            klip, niter, sigma_clip))
-        
         self.im_xc0, self.im_yc0 = self.im_xc, self.im_yc
         dx, dy = rotate_position(self.binary_x1, self.binary_y1, self.im_att[:,3])
         self.im_xc1, self.im_yc1 = self.im_xc0 + dx, self.im_yc0 + dy
         
-        for n in range(niter):
-            self.mess('--- Iteration binary im {:d}/{:d}'.format(n+1, niter))
+        for n in range(self.pps.sigma_clip_niter):
+            self.mess('--- Iteration binary im {:d}/{:d}'.format(n+1, self.pps.sigma_clip_niter))
 
             psf_cube00, psf_cube10, scale00, scale10, bg0, w00, w10 = multi_psf_fit_binary(
                             self.eigen_psf0[:klip],
@@ -1617,7 +1600,8 @@ class PsfPhot:
             scale0 = np.interp(t, t0, scale00)
             scale1 = np.interp(t, t0, scale10)
             bg = np.interp(t, t0, bg0)
-            self.make_mask_cube_im(psf_cube0+psf_cube1, radius=self.pps.im_psfrad, clip=sigma_clip)
+            self.make_mask_cube_im(psf_cube0+psf_cube1, radius=self.pps.im_psfrad,
+                                   clip=self.pps.sigma_clip)
             self.im_mask_cube[sel==0] = self.im_mask
             res = self.im_sub - (psf_cube0+psf_cube1) - bg[:,None,None]
             if self.pps.remove_static:

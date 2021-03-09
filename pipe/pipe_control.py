@@ -36,7 +36,7 @@ class PipeControl():
         if pproc: self.pp.pre_process()
 
     
-    def process_eigen(self, klip=10, sigma_clip=15):
+    def process_eigen(self):
         """Process PSF photometry as defined by the pipe_param parameters,
         on both subarrays and imagettes (if they exist).
         klip is how many principal components should be
@@ -44,12 +44,12 @@ class PipeControl():
         For poor PSF fits, sigma_clip should be high in order to not mask
         perfectly valid but poorly fit pixels.
         """
-        self.process_eigen_sa(klip, sigma_clip=sigma_clip)
+        self.process_eigen_sa()
         if self.pps.file_im is not None:
-            self.process_eigen_im(klip, sigma_clip=sigma_clip)
+            self.process_eigen_im()
 
 
-    def process_eigen_sa(self, klip=None, sigma_clip=15):
+    def process_eigen_sa(self):
         """Process PSF photometry as defined by the pipe_param parameters,
         on subarrays. klip is how many principal components should be
         used in PSF fit. sigma_clip is the clipping factor to mask bad pixels.
@@ -59,10 +59,10 @@ class PipeControl():
         if self.pp is None:
             self.pre_proc()
         self.sa_scale, self.sa_bg, self.sa_flux, self.sa_err, self.sa_sel, self.sa_w = \
-            self.pp.process_eigen_sa(klip=klip, clip=sigma_clip)
+            self.pp.process_eigen_sa()
 
 
-    def process_eigen_im(self, klip=None, sigma_clip=15):
+    def process_eigen_im(self):
         """Process PSF photometry as defined by the pipe_param parameters,
         on imagettes.  klip is how many principal components should be
         used in PSF fit. sigma_clip is the clipping factor to mask bad pixels.
@@ -72,7 +72,7 @@ class PipeControl():
         if self.pp is None:
             self.pre_proc()
         self.im_scale, self.im_bg, self.im_flux, self.im_err, self.im_sel, self.im_w = \
-            self.pp.process_eigen_im(klip=klip, clip=sigma_clip)
+            self.pp.process_eigen_im()
     
     
     def make_psf_lib(self, lib_num=None, klip=None, phase=None, sub_orbits=1):
@@ -174,7 +174,7 @@ class PipeControl():
         self.pp.pre_binary()
 
 
-    def process_binary(self, klip=10, sigma_clip=15):
+    def process_binary(self):
         """Extract photometry of a binary from the subarrays and the imagettes,
         if they exist. Saves PSF models for the two components to class
         variables. 
@@ -182,10 +182,10 @@ class PipeControl():
         if self.pp is None:
             self.pre_binary()
         self.sa_psf_cube0, self.sa_psf_cube1, self.sa_bg = \
-            self.pp.process_binary_sa(klip=klip, sigma_clip=sigma_clip)
+            self.pp.process_binary_sa()
         if self.pps.file_im is not None:
             self.im_psf_cube0, self.im_psf_cube1, self.im_bg = \
-                self.pp.process_binary_im(klip=klip, sigma_clip=sigma_clip)
+                self.pp.process_binary_im()
 
         
     def make_binary_psfs(self, lib_num, klip=None, phase=None, sub_orbits=1):
@@ -206,7 +206,7 @@ class PipeControl():
         # too much PSF noise.
         
         if self.sa_psf_cube0 is None:
-            self.process_binary(klip=1)
+            self.process_binary()
         pm = MultiPSFMaker(self.pp)
         sa_ranges = pm.find_ranges(phase=phase, sub_orbits=sub_orbits)
         if klip is None:
