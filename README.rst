@@ -1,6 +1,13 @@
 PIPE
 ====
 
+.. image:: https://github.com/alphapsa/PIPE/actions/workflows/ci_tests.yml/badge.svg
+   :target: https://github.com/alphapsa/PIPE/actions/workflows/ci_tests.yml
+
+.. image:: http://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat
+    :target: http://www.astropy.org
+    :alt: Powered by Astropy Badge
+
 PIPE is a photometric extraction package for CHEOPS that is complementing
 the official Data Reduction Pipeline (DRP). While the DRP is using aperture
 photometry on the D=200 pixel subarrays provided by CHEOPS, PIPE is using
