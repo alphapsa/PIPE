@@ -17,7 +17,7 @@ from .reduce import check_val, aperture
 from .analyse import find_orbits
 
 
-class MultiPSFMaker():
+class MultiPSFMaker:
     """ Collects routines to compute the PSF from data contained in 
     the PsfPhot object pp. 
     """
