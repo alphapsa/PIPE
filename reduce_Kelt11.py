@@ -49,7 +49,9 @@ if __name__ == '__main__':
     # is "eigenlib_815_281_70_0.pkl" where the last number is the running 
     # number.
     pps.psflib = 0
-    
+    pps.darksub = False
+    pps.sa_range = (10, 20)
+
     # In particular for faint objects, flux has been shown to correlate well
     # with determined background. The reason is likely a neglected non-linearity
     # of the detector at low exposure levels. This tweak corrects for the low-
