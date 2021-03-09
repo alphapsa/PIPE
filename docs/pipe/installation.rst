@@ -39,8 +39,9 @@ PipeControl object. This is a time consuming process (~ hours) and takes
 advantage of multiple CPU cores (up to one thread per PSF being derived).
 
 PCA analysis of the PSFs is fast (a few seconds), and is performed by
-pc.make_eigen(psf_lib) where psf_lib is the list of psf functions previously
-saved in the pickle file.
+pc.make_eigen(psf_lib, outnum) where psf_lib is the list of psf functions
+previously saved in the pickle file, and outnum is the designated version
+number of the output library.
 
 Once the eigenlib is generated (it is put into ref_lib_path/psf_lib/ by default)
 it can be used for photometric extraction. Input parameters are defined in a
