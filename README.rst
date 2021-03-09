@@ -22,6 +22,9 @@ of advantages in using PIPE:
   e.g. when stellar activity such as flares need to be time resolved, or
   when ingress/egress is desired to be better resolved for timing purposes.
 
+* Targets with a bright source nearby (e.g. binaries) can have their photometry
+  individually resolved.
+
 * For faint targets PSF extraction makes better use of the signal by weighting
   it properly over the PSF, so that higher S/N photometry can be extracted.
 
