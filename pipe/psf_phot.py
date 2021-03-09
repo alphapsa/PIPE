@@ -22,7 +22,7 @@ from astropy.io import fits
 
 from .analyse import mad, psf_phot_cube, sigma_clip
 from .cent import (
-    flux as cent_flux,
+    flux as cent_flux
 )
 from .multi_cent import (
     psf as multi_cent_psf,

@@ -9,7 +9,11 @@ and calling methods in the cent module.
 """
 import numpy as np
 import multiprocessing as mp
-from .cent import binary_psf, binary_psf_fix, psf as cent_psf
+from .cent import (
+    binary_psf as cent_binary_psf, 
+    binary_psf_fix as cent_binary_psf_fix,
+    psf as cent_psf
+)
 
 
 def psf(psf_spline, cube, noise_cube, xc, yc,
@@ -78,7 +82,7 @@ def binary_psf(psf_spline, cube, noise_cube, xc0, yc0, xc1, yc1,
         
     print('Using {:d} threads in centering pool'.format(nthreads))
     with mp.Pool(nthreads) as p:
-        outparam = p.starmap(binary_psf, inparam)
+        outparam = p.starmap(cent_binary_psf, inparam)
                 
     for m in range(len(cube)):
         res = outparam[m]
@@ -122,7 +126,7 @@ def binary_psf_fix(psf_spline, cube, noise_cube, xc0, yc0, dx, dy,
         
     print('Using {:d} threads in centering pool'.format(nthreads))
     with mp.Pool(nthreads) as p:
-        outparam = p.starmap(binary_psf_fix, inparam)
+        outparam = p.starmap(cent_binary_psf_fix, inparam)
                 
     for m in range(len(cube)):
         res = outparam[m]

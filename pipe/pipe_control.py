@@ -220,7 +220,7 @@ class PipeControl():
             if self.pps.darksub:
                 mc += self.pp.sa_dark
             if self.pps.remove_static:
-                mc += np.abs(self.pp.sa_mres)
+                mc += np.abs(self.pp.sa_stat_res)
             return mc
 
         def add_noise_im(mc):
@@ -231,7 +231,7 @@ class PipeControl():
             if self.pps.darksub:
                 mc += self.pp.im_dark
             if self.pps.remove_static:
-                mc += np.abs(self.pp.im_mres)
+                mc += np.abs(self.pp.im_stat_res)
             return mc
         
         # Prepare for producing PSF of primary
