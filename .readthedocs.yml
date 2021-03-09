@@ -1,0 +1,18 @@
+version: 2
+
+conda:
+  environment: environment.yml
+
+build:
+  image: latest
+
+python:
+  version: 3.7
+  install:
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs
+        - all
+
+formats: []

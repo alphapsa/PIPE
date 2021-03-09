@@ -9,7 +9,8 @@ file and stdout for diagnostics.
 """
 import time
 
-class PipeLog():
+
+class PipeLog:
     """ Keeps track of tima and messages to the logfile
     """
     def __init__(self, logfile=None, verbosity=1):

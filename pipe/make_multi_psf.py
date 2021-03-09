@@ -11,13 +11,13 @@ Multi-threaded and calls the psf_worker module.
 
 import numpy as np
 import multiprocessing as mp
-import reduce
-import psf_worker
-from analyse import find_orbits
 import pickle
+from .psf_worker import make_psf
+from .reduce import check_val, aperture
+from .analyse import find_orbits
 
 
-class MultiPSFMaker():
+class MultiPSFMaker:
     """ Collects routines to compute the PSF from data contained in 
     the PsfPhot object pp. 
     """
@@ -54,12 +54,12 @@ class MultiPSFMaker():
         """Select frames that are good for estimating PSF
         """
         if self.im:
-            sel, ret_val = reduce.check_val(self.im_flux, clip, clip_niter)
+            sel, ret_val = check_val(self.im_flux, clip, clip_niter)
             sel *= self.pp.filter_motion(self.pp.im_xc, self.pp.im_yc, lowfrac=0.9)
             sel *= self.pp.filter_pos(self.pp.im_xc, self.pp.im_yc)
             sel *= self.pp.filter_bad_masks(self.pp.im_mask_cube, self.pp.im_apt, clip=10)
             self.im_sel = sel
-        sel, ret_val = reduce.check_val(self.sa_flux, clip, clip_niter)
+        sel, ret_val = check_val(self.sa_flux, clip, clip_niter)
         sel *= self.pp.filter_motion(self.pp.sa_xc, self.pp.sa_yc, lowfrac=0.99)
         sel *= self.pp.filter_pos(self.pp.sa_xc, self.pp.sa_yc)
         sel *= self.pp.filter_bad_masks(self.pp.sa_mask_cube, self.pp.sa_apt, clip=10)
@@ -135,7 +135,7 @@ class MultiPSFMaker():
         
         if self.psf_spline is None:
             self.pp.mess('MPM - PSF not found - defining new PSF...')
-            self.psf_spline = psf_worker.make_psf(self.pixtabs[0], self.outrad,
+            self.psf_spline = make_psf(self.pixtabs[0], self.outrad,
                                                    polydeg=2, niter=1)
 
         self.pp.mess('MPM - Updating mask...')
@@ -152,7 +152,7 @@ class MultiPSFMaker():
 
         self.pp.mess(f'MPM - Making PSFs, {nthreads} threads')
         with mp.Pool(nthreads) as p:
-            psf_lib = p.starmap(psf_worker.make_psf, [(pixtab, self.outrad) for
+            psf_lib = p.starmap(make_psf, [(pixtab, self.outrad) for
                                                  pixtab in self.pixtabs])
         self.save_psf(lib_num, psf_lib)
         self.pp.mess('MPM - Done!')
@@ -181,7 +181,7 @@ def update_sa_mask(psf_spline, data, flux, xc, yc, outrad, bad_pix_frac=0.01):
         ycoo = np.arange(data.shape[2])-yc[n]
         res[n] = data[n]-flux[n]*psf_spline(ycoo,xcoo)
     low = np.quantile(res, low_quant, axis=0)
-    apt_out = reduce.aperture(low.shape, radius=outrad)
+    apt_out = aperture(low.shape, radius=outrad)
     bad_pix = (low > np.quantile(low[apt_out], 1-bad_pix_frac))*apt_out
     return (bad_pix == 0)
 

@@ -20,24 +20,40 @@ import numpy as np
 from scipy.ndimage import shift
 from astropy.io import fits
 
-import analyse
-import cent
-import multi_cent
-import multi_psf
-import pipe_log
-import read
-import reduce
-import syntstar
+from .analyse import mad, psf_phot_cube, sigma_clip
+from .cent import (
+    flux as cent_flux,
+)
+from .multi_cent import (
+    psf as multi_cent_psf,
+    binary_psf as multi_cent_binary_psf,
+    binary_psf_fix as multi_cent_binary_psf_fix
+)
+from .multi_psf import fit as multi_psf_fit, fit_binary as multi_psf_fit_binary
+from .pipe_log import PipeLog
+from .read import (
+    imagette_offset, datacube, mask as read_mask, attitude, gain,
+    ron as read_ron, thermFront_2, mjd2bjd, nonlinear, flatfield, starcat,
+    save_eigen_fits, save_binary_eigen_fits, sub_image_indices,
+    dark as read_dark
+)
+from .syntstar import star_bg, rotate_position, derotate_position
+from .reduce import (
+    resample_attitude, resample_imagette_time, aperture, integrate_psf,
+    interp_cube_ext, cube_apt, clean_cube2D, interp_cube, noise, psf_noise,
+    pix_mat, make_maskcube, rough_contrast, check_low, check_val, check_pos,
+    check_motion, check_mask
+)
 
 
-class PsfPhot():
+class PsfPhot:
     """ Reads and stores CHEOPS data and collects methods to analyse
         the data using mainly PSF photometry.
     """
     def __init__(self, pipe_params):
         self.pps = pipe_params
         
-        self.plog = pipe_log.PipeLog(self.pps.file_log)
+        self.plog = PipeLog(self.pps.file_log)
         self.mess = self.plog.mess  # Shorthand
         
         self.plog.mess_list(self.pps.str_list()) # Save list of params to log
@@ -148,7 +164,7 @@ class PsfPhot():
             # A bug in the DPS caused imagette timings to be wrong. This
             # can be easily fixed by resampling times from subarray timings
             if self.pps.resample_im_times:
-                self.im_mjd = reduce.resample_imagette_time(self.sa_mjd, self.nexp)
+                self.im_mjd = resample_imagette_time(self.sa_mjd, self.nexp)
             self.im_smear = np.zeros(self.im_raw.shape[0:2])
             self.im_stat_res = np.zeros(self.im_raw[0].shape)
         else:
@@ -247,7 +263,7 @@ class PsfPhot():
         self.sa_mask_cube[:] = self.sa_mask
         
         # Define PSF normalised to subarray flux
-        psf_flux = reduce.integrate_psf(self.psf, radius=self.pps.im_psfrad)
+        psf_flux = integrate_psf(self.psf, radius=self.pps.im_psfrad)
         sa_med_flux = self.median_flux_sa(radius=self.pps.im_psfrad)
         self.sa_norm = sa_med_flux/psf_flux
         self.sa_psf = lambda y, x, grid=True: self.sa_norm * self.psf(y, x, grid=grid)
@@ -334,11 +350,11 @@ class PsfPhot():
         self.mess('klip={:d}, niter={:d}, sigma_clip={:.1f}'.format(
             klip, niter, clip))
 
-        sa_psfapt = reduce.aperture(self.sa_debias[0].shape, self.pps.sa_psfrad)
+        sa_psfapt = aperture(self.sa_debias[0].shape, self.pps.sa_psfrad)
 
         for n in range(niter):
             self.mess('--- Iteration sa {:d}/{:d}'.format(n+1, niter))
-            psf_cube0, scale0, bg0, w0 = multi_psf.fit(
+            psf_cube0, scale0, bg0, w0 = multi_psf_fit(
                             self.eigen_psf[:klip],
                             self.sa_sub[sel] - self.sa_stat_res,
                             sa_noise[sel],
@@ -350,8 +366,8 @@ class PsfPhot():
             # Interpolate over frames without source
             t0 = self.sa_att[sel, 0]
             t = self.sa_att[:, 0]        
-            psf_cube = reduce.interp_cube_ext(t, t0, psf_cube0)
-            w = reduce.interp_cube_ext(t, t0, w0)
+            psf_cube = interp_cube_ext(t, t0, psf_cube0)
+            w = interp_cube_ext(t, t0, w0)
             scale = np.interp(t, t0, scale0)
             bg = np.interp(t, t0, bg0)
 
@@ -359,7 +375,7 @@ class PsfPhot():
             self.sa_mask_cube[sel==0] = self.sa_mask
             res = self.sa_sub - psf_cube*sa_psfapt - bg[:,None,None]
             if self.pps.remove_static:
-                apts = reduce.cube_apt(res.shape, self.pps.psf_rad-1, self.sa_xc, self.sa_yc)
+                apts = cube_apt(res.shape, self.pps.psf_rad - 1, self.sa_xc, self.sa_yc)
                 nanres = res.copy()
                 nanres[apts==0] = np.nan
                 nanres[0,:,:] = 0   # Ensures not all values are nan
@@ -379,7 +395,7 @@ class PsfPhot():
                 np.abs(self.sa_stat_res) + np.abs(self.sa_dark))**2 +
                 self.sa_dark_err**2)**.5
 
-        apt = reduce.aperture(self.sa_sub[0].shape, self.pps.sa_psfrad)
+        apt = aperture(self.sa_sub[0].shape, self.pps.sa_psfrad)
         flux, err = self.psf_phot_sa(psf_cube*apt, bg, self.pps.im_psfrad-2)
         self.save_residuals_sa('', psf_cube*apt, bg)
         
@@ -398,8 +414,8 @@ class PsfPhot():
                            bg + self.sa_bg, chi2, w)
         self.save_cube_fits('mask_cube_sa.fits', 
                             np.array(self.sa_mask_cube, dtype='uint8'))
-        self.mess('MAD sa: {:.2f} ppm'.format(analyse.mad(scale)))
-        self.mess('MAD sa[flag==0]: {:.2f} ppm'.format(analyse.mad(scale[flag==0])))
+        self.mess('MAD sa: {:.2f} ppm'.format(mad(scale)))
+        self.mess('MAD sa[flag==0]: {:.2f} ppm'.format(mad(scale[flag==0])))
 
         return  scale, bg, flux, err, sel, w
 
@@ -445,7 +461,7 @@ class PsfPhot():
             self.mess('--- Iteration im {:d}/{:d}'.format(n+1, niter))
             im_noise = np.maximum(self.im_noise, self.im_raw_noise)
             # Only extract photometry from frames with source
-            psf_cube0, scale0, bg0, w0 = multi_psf.fit(
+            psf_cube0, scale0, bg0, w0 = multi_psf_fit(
                             self.eigen_psf[:klip],
                             self.im_sub[sel] - self.im_stat_res,
                             im_noise[sel],
@@ -457,8 +473,8 @@ class PsfPhot():
             # Interpolate over frames without source
             t0 = self.im_att[sel, 0]
             t = self.im_att[:, 0]
-            psf_cube = reduce.interp_cube_ext(t, t0, psf_cube0)
-            w = reduce.interp_cube_ext(t, t0, w0)
+            psf_cube = interp_cube_ext(t, t0, psf_cube0)
+            w = interp_cube_ext(t, t0, w0)
             scale = np.interp(t, t0, scale0)
             bg = np.interp(t, t0, bg0)
             
@@ -498,8 +514,8 @@ class PsfPhot():
                            bg + self.im_bg, chi2, w)
         self.save_cube_fits('mask_cube_im.fits',
                             np.array(self.im_mask_cube, dtype='uint8'))
-        self.mess('MAD im: {:.2f} ppm'.format(analyse.mad(scale)))
-        self.mess('MAD im[flag==0]: {:.2f} ppm'.format(analyse.mad(scale[flag==0])))
+        self.mess('MAD im: {:.2f} ppm'.format(mad(scale)))
+        self.mess('MAD im[flag==0]: {:.2f} ppm'.format(mad(scale[flag==0])))
         
         return  scale, bg, flux, err, sel, w
 
@@ -584,18 +600,18 @@ class PsfPhot():
         self.mess('Reading de-biased data cube... [sa]')
         
         self.sa_debias, self.sa_mjd, self.sa_hdr, self.sa_tab = \
-            read.datacube(self.pps.file_sa_cal, self.pps.sa_range)
+            datacube(self.pps.file_sa_cal, self.pps.sa_range)
         
         
         self.sa_apt = (np.max(self.sa_debias, axis=0) > 0)
         sa_cor, sa_mjd, sa_hdr, sa_tab = \
-            read.datacube(self.pps.file_sa_cor, self.pps.sa_range)
+            datacube(self.pps.file_sa_cor, self.pps.sa_range)
 
         self.sa_bg = np.median(self.sa_debias[:, self.sa_apt] - 
                                sa_cor[:, self.sa_apt], axis=1)
         # Correct for the bg offset from the DRP estimates
         inrad = 0.95*0.5*np.min(sa_cor[0].shape)
-        apt95 = reduce.aperture(sa_cor[0].shape, radius=inrad)
+        apt95 = aperture(sa_cor[0].shape, radius=inrad)
         self.sa_ring95 = self.sa_apt * (apt95 == 0)
         bgoff = np.median(sa_cor[:,self.sa_ring95])
         self.sa_bg += bgoff
@@ -612,8 +628,8 @@ class PsfPhot():
         """
         self.mess('Reading imagette data cube...')
         self.im_raw, self.im_mjd, self.im_hdr, self.im_tab = \
-            read.datacube(self.pps.file_im, im_range)
-        self.im_off, self.im_sa_off = read.imagette_offset(self.pps.file_im)
+            datacube(self.pps.file_im, im_range)
+        self.im_off, self.im_sa_off = imagette_offset(self.pps.file_im)
         self.im_apt = (np.max(self.im_raw, axis=0) > 0)
         self.im_bgstars = np.zeros(self.im_raw.shape)
         self.im_xc = 0.5*self.im_raw.shape[-2]
@@ -627,7 +643,7 @@ class PsfPhot():
         not masked, while 0 means it will be masked out and not used.
         """
         self.mess('Load mask...')
-        mask = read.mask(self.pps.file_mask)
+        mask = read_mask(self.pps.file_mask)
         self.sa_mask = self.sa_apt
         if self.pps.mask_badpix:
             self.sa_mask *= (mask==0)
@@ -658,14 +674,14 @@ class PsfPhot():
                 self.im_dark_err = self.im_dark
             return
         self.mess('Reading dark frames...')
-        dark, dark_err = read.dark(self.pps.calibpath,
+        dark, dark_err = read_dark(self.pps.calibpath,
                                    self.sa_hdr['V_STRT_M'],
                                    (self.sa_hdr['X_WINOFF'], self.sa_hdr['Y_WINOFF']),
                                    self.sa_debias.shape[1:])
         self.sa_dark = dark * self.sa_hdr['TEXPTIME'] * self.sa_apt
         self.sa_dark_err = dark_err * self.sa_hdr['TEXPTIME'] * self.sa_apt
         if self.pps.file_im is not None:
-            i0, i1, j0, j1 = read.sub_image_indices(self.im_sa_off, 
+            i0, i1, j0, j1 = sub_image_indices(self.im_sa_off,
                                                     self.im_raw.shape[1:])
             self.im_dark = (dark[j0:j1, i0:i1] * 
                             self.im_hdr['TEXPTIME'] * self.im_apt)
@@ -678,15 +694,15 @@ class PsfPhot():
         to imagette cadence if imagettes are defined
         """
         self.mess('Reading attitude data...')
-        att = read.attitude(self.pps.file_att)
+        att = attitude(self.pps.file_att)
         self.sa_t = (att[:,0]-att[0,0])/(att[-1,0]-att[0,0])
         oexptime = max(self.sa_hdr['TEXPTIME'], self.sa_hdr['EXPTIME'])
-        self.sa_att = reduce.resample_attitude(self.sa_mjd, oexptime, att)        
+        self.sa_att = resample_attitude(self.sa_mjd, oexptime, att)
         self.sa_t = ((self.sa_att[:,0]-self.sa_att[0,0]) /
                      (self.sa_att[-1,0]-self.sa_att[0,0]))
         if self.pps.file_im is not None:
             iexptime = max(self.im_hdr['TEXPTIME'], self.im_hdr['EXPTIME'])
-            self.im_att = reduce.resample_attitude(self.im_mjd, iexptime, att)
+            self.im_att = resample_attitude(self.im_mjd, iexptime, att)
             self.im_t = ((self.im_att[:,0]-self.im_att[0,0]) /
                          (self.im_att[-1,0]-self.im_att[0,0]))
 
@@ -697,7 +713,7 @@ class PsfPhot():
         """
         if self.pps.gain is None:
             self.mess('Reading HK and computing gain...')
-            self.pps.gain = np.median(read.gain(self.pps.file_hk, self.pps.file_gain))
+            self.pps.gain = np.median(gain(self.pps.file_hk, self.pps.file_gain))
             #self.mess('Gain = {:.4f} e/ADU +/- {:.1f} ppm'.format(self.pps.gain,
             #            1e6*np.std(self.im_gain)/self.pps.gain))
         self.im_gain = self.pps.gain * np.ones(len(self.im_raw))
@@ -711,7 +727,7 @@ class PsfPhot():
         self.mess('Reading subarray read-out noise...')
         if self.pps.gain is None:
             raise Exception('No gain defined')
-        ron = read.ron(self.pps.file_sa_cal)
+        ron = read_ron(self.pps.file_sa_cal)
         self.pps.ron = ron*self.pps.gain
         if ron > 0:
             self.mess('RON = {:.2f} ADU'.format(ron))
@@ -724,7 +740,7 @@ class PsfPhot():
         data cube.
         """
         self.mess('Reading thermFront_2 sensor data...')
-        self.sa_thermFront_2 = read.thermFront_2(self.pps.file_sa_raw)
+        self.sa_thermFront_2 = thermFront_2(self.pps.file_sa_raw)
         if self.pps.sa_range is not None:
             self.sa_thermFront_2 = self.sa_thermFront_2[self.pps.sa_range[0]:self.pps.sa_range[1]]
         if self.pps.file_im is not None:
@@ -738,7 +754,7 @@ class PsfPhot():
         self.mess('Loading star catalogue...')
         shape = self.sa_debias[0].shape
         maxrad = (np.max(shape)**2 + np.max(self.pps.ccdsize)**2)**0.5
-        self.starcat = syntstar.star_bg(self.pps.file_starcat,
+        self.starcat = star_bg(self.pps.file_starcat,
                                         maxrad=maxrad,
                                         shape=shape)
 
@@ -748,15 +764,15 @@ class PsfPhot():
         function.
         """
         self.mess('Defining MJD to BJD conversion...')
-        self.mjd2bjd = read.mjd2bjd(self.pps.file_sa_cal)
+        self.mjd2bjd = mjd2bjd(self.pps.file_sa_cal)
 
 
     def sub_im_bias(self):
         """Uses bias values listed in subarray table to interpolate
         the biases on the imagette cadence.
         """
-        bias = self.im_hdr['NEXP'] * reduce.interp_cube(self.im_mjd, self.sa_mjd, 
-                                                   self.sa_tab['BIAS'])
+        bias = self.im_hdr['NEXP'] * interp_cube(self.im_mjd, self.sa_mjd,
+                                                        self.sa_tab['BIAS'])
         self.im_debias = self.adu2e_im((self.im_raw - bias[:,None,None])
                                        *self.im_apt)
         
@@ -768,7 +784,7 @@ class PsfPhot():
         self.mess('Converting ADU to electrons [im]...')
         if self.pps.non_lin:
             self.mess(' Using non-linearity correction [im]...')
-            nonlinfun = read.nonlinear(self.pps.file_nonlin)
+            nonlinfun = nonlinear(self.pps.file_nonlin)
             im_e = im_adu * nonlinfun(im_adu/self.im_hdr['NEXP']) * self.im_gain[:,None,None]
         else:
             self.mess(' No non-linearity correction [im]...', level=2)
@@ -791,7 +807,7 @@ class PsfPhot():
         """
         if self.pps.flatfield:
             self.mess('Reading and applying flatfield [im]...')
-            iff = read.flatfield(self.pps.file_flats, target_Teff, 
+            iff = flatfield(self.pps.file_flats, target_Teff,
                                  self.im_off, self.im_debias[0].shape)
             self.im_debias /= iff
         else:
@@ -856,7 +872,7 @@ class PsfPhot():
         self.mess(' Spot fraction: {:d}/{:d} = {:.3f}%'.format(mss,
                                                              ns,
                                                              100*mss/ns))
-        apt = reduce.aperture(self.sa_sub[0].shape, self.pps.sa_psfrad)
+        apt = aperture(self.sa_sub[0].shape, self.pps.sa_psfrad)
         nanres = res - self.sa_stat_res
         nanres[:, apt==0] = np.nan
         nanres[spot] = np.nan
@@ -938,7 +954,7 @@ class PsfPhot():
         """
         self.mess('Compute noise cube [sa]...')
         iron = self.pps.ron*self.sa_hdr['NEXP']**0.5
-        self.sa_raw_noise = reduce.noise(self.sa_debias, ron_elec=iron)
+        self.sa_raw_noise = noise(self.sa_debias, ron_elec=iron)
         if self.pps.darksub:
             self.sa_raw_noise = (self.sa_raw_noise**2 + self.sa_dark_err**2)**.5
         # Define noise outside aperture
@@ -953,7 +969,7 @@ class PsfPhot():
         """
         self.mess('Compute noise cube [im]...')
         iron = self.pps.ron*self.im_hdr['NEXP']**0.5
-        self.im_raw_noise = reduce.noise(self.im_debias, ron_elec=iron)                             
+        self.im_raw_noise = noise(self.im_debias, ron_elec=iron)
         if self.pps.darksub:
             self.im_raw_noise = (self.im_raw_noise**2 + self.im_dark_err**2)**.5
         # Define noise outside aperture
@@ -967,7 +983,7 @@ class PsfPhot():
         """
         self.mess('Compute PSF noise [sa]...')
         iron = self.pps.ron*self.sa_hdr['NEXP']**0.5
-        self.sa_mod_noise = reduce.psf_noise(src_mod_cube, ron_elec=iron)
+        self.sa_mod_noise = psf_noise(src_mod_cube, ron_elec=iron)
         # Define noise outside aperture
         self.sa_mod_noise *= self.sa_apt
         self.sa_mod_noise += (self.sa_apt==0)*np.max(np.median(self.sa_mod_noise, axis=0))
@@ -979,7 +995,7 @@ class PsfPhot():
         """
         self.mess('Compute PSF noise [im]...')
         iron = self.pps.ron*self.im_hdr['NEXP']**0.5
-        self.im_mod_noise = reduce.psf_noise(src_mod_cube, ron_elec=iron)
+        self.im_mod_noise = psf_noise(src_mod_cube, ron_elec=iron)
         # Define noise outside aperture
         self.im_mod_noise *= self.im_apt
         self.im_mod_noise += (self.im_apt==0)*np.max(np.median(self.im_mod_noise, axis=0))
@@ -993,8 +1009,8 @@ class PsfPhot():
         if radius == None:
             radius = self.pps.im_psfrad - 1
         self.mess('Compute photo centers...')
-        apt = reduce.aperture(data[0].shape, radius=radius)
-        ixc, iyc = cent.flux(data*apt)
+        apt = aperture(data[0].shape, radius=radius)
+        ixc, iyc = cent_flux(data*apt)
         self.mess(' Cent std: ({:.3f}, {:.3f})'.format(np.std(ixc),
                                                   np.std(iyc)))
         return ixc, iyc
@@ -1007,7 +1023,7 @@ class PsfPhot():
         sel = self.sa_cent_sel        
         sa_noise = np.maximum(self.sa_noise, self.sa_raw_noise)
         self.mess('Compute PSF centers [sa]... (multi {:d} threads)'.format(self.pps.nthreads))
-        xc, yc, sc = multi_cent.psf(self.psf,
+        xc, yc, sc = multi_cent_psf(self.psf,
                                     self.sa_sub[sel] - self.sa_stat_res,
                                     sa_noise[sel],
                                     self.sa_xc[sel], self.sa_yc[sel],
@@ -1016,7 +1032,7 @@ class PsfPhot():
                                     nthreads=self.pps.nthreads)
         self.sa_xc = np.interp(self.sa_att[:, 0], self.sa_att[sel, 0], xc)
         self.sa_yc = np.interp(self.sa_att[:, 0], self.sa_att[sel, 0], yc)
-        ind = analyse.sigma_clip(xc) * analyse.sigma_clip(yc)
+        ind = sigma_clip(xc) * sigma_clip(yc)
         self.mess('SA cent std: ({:.3f}, {:.3f})'.format(np.std(xc[ind]),
                                                      np.std(yc[ind])))
         
@@ -1028,7 +1044,7 @@ class PsfPhot():
         sel = self.im_cent_sel
         im_noise = np.maximum(self.im_noise, self.im_raw_noise)
         self.mess('Compute PSF centers [im]... (multi {:d} threads)'.format(self.pps.nthreads))
-        xc, yc, sc = multi_cent.psf(self.psf,
+        xc, yc, sc = multi_cent_psf(self.psf,
                                     self.im_sub[sel] - self.im_stat_res, 
                                     im_noise[sel],
                                     self.im_xc[sel], self.im_yc[sel],
@@ -1037,7 +1053,7 @@ class PsfPhot():
                                     nthreads=self.pps.nthreads)
         self.im_xc = np.interp(self.im_att[:,0], self.im_att[sel, 0], xc)
         self.im_yc = np.interp(self.im_att[:,0], self.im_att[sel, 0], yc)
-        ind = analyse.sigma_clip(xc) * analyse.sigma_clip(yc)
+        ind = sigma_clip(xc) * sigma_clip(yc)
         self.mess('IM cent std: ({:.3f}, {:.3f})'.format(np.std(xc[ind]),
                                                      np.std(yc[ind])))       
 
@@ -1048,8 +1064,8 @@ class PsfPhot():
         """
         self.mess('Produce pixel table [sa]...')
         sa_raw_noise = np.maximum(self.sa_raw_noise, self.sa_noise)
-        return reduce.pix_mat(self.sa_sub[sel]-self.sa_stat_res, sa_raw_noise[sel],
-                           self.sa_xc[sel], self.sa_yc[sel], mask, fscale)
+        return pix_mat(self.sa_sub[sel] - self.sa_stat_res, sa_raw_noise[sel],
+                              self.sa_xc[sel], self.sa_yc[sel], mask, fscale)
 
     
     def make_pixtab_im(self, sel, mask, fscale=None):
@@ -1059,8 +1075,8 @@ class PsfPhot():
         """
         self.mess('Produce pixel table [im]...')
         im_raw_noise = np.maximum(self.im_raw_noise, self.im_noise)
-        return reduce.pix_mat(self.im_sub[sel]-self.im_stat_res, im_raw_noise[sel],
-                           self.im_xc[sel], self.im_yc[sel], mask, fscale)
+        return pix_mat(self.im_sub[sel] - self.im_stat_res, im_raw_noise[sel],
+                              self.im_xc[sel], self.im_yc[sel], mask, fscale)
 
 
     def median_flux_sa(self, radius=23):
@@ -1090,11 +1106,11 @@ class PsfPhot():
         simple interpolation of bad pixels) of radius on each subarray. 
         Returns array of flux.
         """
-        clean = reduce.clean_cube2D(self.sa_sub, self.sa_mask, self.sa_apt)
+        clean = clean_cube2D(self.sa_sub, self.sa_mask, self.sa_apt)
         xc0 = np.median(self.sa_xc)
         yc0 = np.median(self.sa_yc)
         dx, dy = (xc0 - self.sa_xc), (yc0 - self.sa_yc)
-        apt = reduce.aperture(clean[0].shape, radius=radius, xc=xc0, yc=yc0)
+        apt = aperture(clean[0].shape, radius=radius, xc=xc0, yc=yc0)
         flux = np.zeros(len(clean))
         for n in range(len(clean)):
             flux[n] = np.sum(shift(clean[n], (dy[n], dx[n]), order=1)[apt])
@@ -1105,11 +1121,11 @@ class PsfPhot():
         simple interpolation of bad pixels) of radius on each imagette. 
         Returns array of flux.
         """
-        clean = reduce.clean_cube2D(self.im_sub, self.im_mask, self.im_apt)
+        clean = clean_cube2D(self.im_sub, self.im_mask, self.im_apt)
         xc0 = np.median(self.im_xc)
         yc0 = np.median(self.im_yc)
         dx, dy = (xc0 - self.im_xc), (yc0 - self.im_yc)
-        apt = reduce.aperture(clean[0].shape, radius=radius, xc=xc0, yc=yc0)
+        apt = aperture(clean[0].shape, radius=radius, xc=xc0, yc=yc0)
         flux = np.zeros(len(clean))
         for n in range(len(clean)):
             flux[n] = np.sum(shift(clean[n], (dy[n], dx[n]), order=1)[apt])
@@ -1124,7 +1140,7 @@ class PsfPhot():
         """
         apt = self.apt_cube_sa(radius) * self.sa_mask_cube
         sa_noise = np.maximum(self.sa_raw_noise, self.sa_mod_noise)
-        f, e = analyse.psf_phot_cube(self.sa_sub, sa_noise, psf_cube, bg, apt)
+        f, e = psf_phot_cube(self.sa_sub, sa_noise, psf_cube, bg, apt)
         return f, e
 
 
@@ -1136,7 +1152,7 @@ class PsfPhot():
         """
         apt = self.apt_cube_im(radius) * self.im_mask_cube
         im_noise = np.maximum(self.im_raw_noise, self.im_mod_noise)
-        f, e = analyse.psf_phot_cube(self.im_sub, im_noise, psf_cube, bg, apt)
+        f, e = psf_phot_cube(self.im_sub, im_noise, psf_cube, bg, apt)
         return f, e
         
     
@@ -1147,7 +1163,7 @@ class PsfPhot():
         apt = np.zeros(self.sa_sub.shape, dtype='?')
         shape = apt[0].shape
         for n in range(len(apt)):
-            apt[n] = reduce.aperture(shape, radius, self.sa_xc[n], self.sa_yc[n])
+            apt[n] = aperture(shape, radius, self.sa_xc[n], self.sa_yc[n])
         return apt
 
         
@@ -1158,7 +1174,7 @@ class PsfPhot():
         apt = np.zeros(self.im_raw.shape, dtype='?')
         shape = apt[0].shape
         for n in range(len(apt)):
-            apt[n] = reduce.aperture(shape, radius, self.im_xc[n], self.im_yc[n])
+            apt[n] = aperture(shape, radius, self.im_xc[n], self.im_yc[n])
         return apt
 
 
@@ -1171,8 +1187,8 @@ class PsfPhot():
             self.mess('No mask cube [im].', level=2)
             return
         self.mess('Make mask cube [sa]...')
-        self.sa_mask_cube = reduce.make_maskcube(self.sa_sub, self.sa_noise, model_cube, 
-                                       mask=self.sa_mask, radius=radius, clip=clip)
+        self.sa_mask_cube = make_maskcube(self.sa_sub, self.sa_noise, model_cube,
+                                                 mask=self.sa_mask, radius=radius, clip=clip)
 
 
     def make_mask_cube_im(self, model_cube, radius=None, clip=5):
@@ -1184,8 +1200,8 @@ class PsfPhot():
             self.mess('No mask cube [im].', level=2)
             return
         self.mess('Make mask cube [im]...')
-        self.im_mask_cube = reduce.make_maskcube(self.im_sub, self.im_noise, model_cube, 
-                                       mask=self.im_mask, radius=radius, clip=clip)
+        self.im_mask_cube = make_maskcube(self.im_sub, self.im_noise, model_cube,
+                                                 mask=self.im_mask, radius=radius, clip=clip)
 
 
     def make_star_bg_cube_sa(self, target=1):
@@ -1233,8 +1249,8 @@ class PsfPhot():
         a binary index array to indicate frames with source.
         """
         self.mess('Finding frames with source missing...')
-        contrast = reduce.rough_contrast(data, mask=mask)
-        sel, ret_str =  reduce.check_low(contrast, clip, niter)
+        contrast = rough_contrast(data, mask=mask)
+        sel, ret_str =  check_low(contrast, clip, niter)
         self.mess(ret_str, 2)
         return sel
 
@@ -1245,7 +1261,7 @@ class PsfPhot():
         of consistent data points.
         """
         self.mess('Filtering out frames with too deviating summed flux...')
-        sel, ret_str = reduce.check_val(flux, clip, niter)
+        sel, ret_str = check_val(flux, clip, niter)
         self.mess(ret_str, 2)
         return sel
 
@@ -1255,7 +1271,7 @@ class PsfPhot():
         the outliers.
         """
         self.mess('Finding frames with excessive offsets...')
-        sel, ret_str = reduce.check_pos(xc, yc, clip, niter)
+        sel, ret_str = check_pos(xc, yc, clip, niter)
         self.mess(ret_str, 2)
         return sel
     
@@ -1267,9 +1283,9 @@ class PsfPhot():
         per coordinate.
         """
         self.mess('Filtering out frames with suspected motion...')
-        selX, ret_str = reduce.check_motion(xc, lowfrac)
+        selX, ret_str = check_motion(xc, lowfrac)
         self.mess(ret_str, 2)
-        selY, ret_str =  reduce.check_motion(yc, lowfrac)
+        selY, ret_str =  check_motion(yc, lowfrac)
         self.mess(ret_str, 2)
         return selX*selY
     
@@ -1280,7 +1296,7 @@ class PsfPhot():
         crossing the field of view, or some strongly scattered light)
         """
         self.mess('Finding frames with excessively masked pixels...')
-        sel, ret_str = reduce.check_mask(mask_cube, apt, clip, niter)
+        sel, ret_str = check_mask(mask_cube, apt, clip, niter)
         self.mess(ret_str, 2)
         return sel
     
@@ -1292,7 +1308,7 @@ class PsfPhot():
         self.mess('Finding frames with deviating background...')
         if sel is None:
             sel = np.ones(len(bg), dtype='?')
-        bg_sel, ret_str = reduce.check_val(bg[sel], clip=clip, niter=niter)
+        bg_sel, ret_str = check_val(bg[sel], clip=clip, niter=niter)
         self.mess(ret_str, 2)
         ret_sel = np.ones(len(bg), dtype='?')
         ret_sel[sel] = bg_sel
@@ -1348,7 +1364,7 @@ class PsfPhot():
         the starcat file, so this method retrieves and returns it.
         """
         self.mess('Reading T_EFF from starcat file ...')
-        temp = read.starcat(self.pps.file_starcat, colstr='T_EFF', entry=entry)
+        temp = starcat(self.pps.file_starcat, colstr='T_EFF', entry=entry)
         self.mess(' Target T_eff = {:.1f}'.format(temp))
         return temp
     
@@ -1358,7 +1374,7 @@ class PsfPhot():
         fits file located in the output directory.
         """
         filename = os.path.join(self.pps.outdir, f'{self.pps.name}_{self.pps.visit}_sa.fits')
-        read.save_eigen_fits(filename,
+        save_eigen_fits(filename,
                           self.sa_att[:,0],
                           self.mjd2bjd(self.sa_att[:,0]),
                           flux,
@@ -1379,7 +1395,7 @@ class PsfPhot():
         fits file located in the output directory.
         """
         filename = os.path.join(self.pps.outdir, f'{self.pps.name}_{self.pps.visit}_im.fits')
-        read.save_eigen_fits(filename,
+        save_eigen_fits(filename,
                           self.im_att[:,0],
                           self.mjd2bjd(self.im_att[:,0]),
                           flux,
@@ -1475,8 +1491,8 @@ class PsfPhot():
         only an initial guess anyway so not critical.
         """
         self.pre_process()
-        psf_flux0 = reduce.integrate_psf(self.psf0, radius=integ_rad)
-        psf_flux1 = reduce.integrate_psf(self.psf1, radius=integ_rad)
+        psf_flux0 = integrate_psf(self.psf0, radius=integ_rad)
+        psf_flux1 = integrate_psf(self.psf1, radius=integ_rad)
         sa_med_flux = self.median_flux_sa(radius=integ_rad)
         self.sa_norm0 = sa_med_flux/psf_flux0
         self.sa_norm1 = sa_med_flux/psf_flux1
@@ -1507,7 +1523,7 @@ class PsfPhot():
         for n in range(niter):
             self.mess('--- Iteration binary sa {:d}/{:d}'.format(n+1, niter))
 
-            psf_cube00, psf_cube10, scale00, scale10, bg0, w00, w10 = multi_psf.fit_binary(
+            psf_cube00, psf_cube10, scale00, scale10, bg0, w00, w10 = multi_psf_fit_binary(
                             self.eigen_psf0[:klip],
                             self.eigen_psf1[:klip],
                             self.sa_sub[sel] - self.sa_stat_res,
@@ -1522,10 +1538,10 @@ class PsfPhot():
             psf_cube10 *= self.sa_apt
             t0 = self.sa_att[sel, 0]
             t = self.sa_att[:, 0]        
-            psf_cube0 = reduce.interp_cube_ext(t, t0, psf_cube00)
-            psf_cube1 = reduce.interp_cube_ext(t, t0, psf_cube10)
-            w0 = reduce.interp_cube_ext(t, t0, w00)
-            w1 = reduce.interp_cube_ext(t, t0, w10)
+            psf_cube0 = interp_cube_ext(t, t0, psf_cube00)
+            psf_cube1 = interp_cube_ext(t, t0, psf_cube10)
+            w0 = interp_cube_ext(t, t0, w00)
+            w1 = interp_cube_ext(t, t0, w10)
             scale0 = np.interp(t, t0, scale00)
             scale1 = np.interp(t, t0, scale10)
             bg = np.interp(t, t0, bg0)
@@ -1573,13 +1589,13 @@ class PsfPhot():
             klip, niter, sigma_clip))
         
         self.im_xc0, self.im_yc0 = self.im_xc, self.im_yc
-        dx, dy = syntstar.rotate_position(self.binary_x1, self.binary_y1, self.im_att[:,3])
+        dx, dy = rotate_position(self.binary_x1, self.binary_y1, self.im_att[:,3])
         self.im_xc1, self.im_yc1 = self.im_xc0 + dx, self.im_yc0 + dy
         
         for n in range(niter):
             self.mess('--- Iteration binary im {:d}/{:d}'.format(n+1, niter))
 
-            psf_cube00, psf_cube10, scale00, scale10, bg0, w00, w10 = multi_psf.fit_binary(
+            psf_cube00, psf_cube10, scale00, scale10, bg0, w00, w10 = multi_psf_fit_binary(
                             self.eigen_psf0[:klip],
                             self.eigen_psf1[:klip],
                             self.im_sub[sel] - self.im_stat_res,
@@ -1594,10 +1610,10 @@ class PsfPhot():
             psf_cube10 *= self.im_apt
             t0 = self.im_att[sel, 0]
             t = self.im_att[:, 0]        
-            psf_cube0 = reduce.interp_cube_ext(t, t0, psf_cube00)
-            psf_cube1 = reduce.interp_cube_ext(t, t0, psf_cube10)
-            w0 = reduce.interp_cube_ext(t, t0, w00)
-            w1 = reduce.interp_cube_ext(t, t0, w10)
+            psf_cube0 = interp_cube_ext(t, t0, psf_cube00)
+            psf_cube1 = interp_cube_ext(t, t0, psf_cube10)
+            w0 = interp_cube_ext(t, t0, w00)
+            w1 = interp_cube_ext(t, t0, w10)
             scale0 = np.interp(t, t0, scale00)
             scale1 = np.interp(t, t0, scale10)
             bg = np.interp(t, t0, bg0)
@@ -1639,7 +1655,7 @@ class PsfPhot():
         
         self.mess('Compute subarray PSF centers... (multi {:d} threads)'.format(self.pps.nthreads))
         sa_xc0, sa_yc0, sc0, sa_xc1, sa_yc1, sc1 = (
-                multi_cent.binary_psf(psf,
+                multi_cent_binary_psf(psf,
                                       self.sa_sub, self.sa_noise,
                                       self.sa_xc, self.sa_yc,
                                       xc1, yc1,
@@ -1647,7 +1663,7 @@ class PsfPhot():
                                       self.sa_mask_cube,
                                       nthreads=self.pps.nthreads))        
             
-        x, y = syntstar.derotate_position(sa_xc1-sa_xc0, sa_yc1-sa_yc0, self.sa_att[:,3])
+        x, y = derotate_position(sa_xc1-sa_xc0, sa_yc1-sa_yc0, self.sa_att[:,3])
         self.binary_x1, self.binary_y1 = np.median(x), np.median(y)
         ds = (x**2+y**2)**.5
 
@@ -1655,11 +1671,11 @@ class PsfPhot():
         print('Astrometry: separation = {:.3f} +/- {:.3f} pix'.format(
                 self.separation, np.std(ds)/len(ds)**.5))
         
-        dx, dy = syntstar.rotate_position(self.binary_x1, self.binary_y1, self.sa_att[:,3])
+        dx, dy = rotate_position(self.binary_x1, self.binary_y1, self.sa_att[:,3])
         
         self.mess('Compute subarray PSF centers... (multi {:d} threads)'.format(self.pps.nthreads))
         self.sa_xc0, self.sa_yc0, sc0, self.sa_xc1, self.sa_yc1, sc1 = (
-                multi_cent.binary_psf_fix(psf,
+                multi_cent_binary_psf_fix(psf,
                                           self.sa_sub, self.sa_noise,
                                           self.sa_xc, self.sa_yc, 
                                           dx, dy,
@@ -1673,7 +1689,7 @@ class PsfPhot():
         fits file located in the output directory.
         """
         filename = os.path.join(self.pps.outdir, f'{self.pps.name}_{self.pps.visit}_binary_sa.fits')
-        read.save_binary_eigen_fits(filename,
+        save_binary_eigen_fits(filename,
                           self.sa_att[:,0],
                           self.mjd2bjd(self.sa_att[:,0]),
                           flux0,
@@ -1697,7 +1713,7 @@ class PsfPhot():
         fits file located in the output directory.
         """
         filename = os.path.join(self.pps.outdir, f'{self.pps.name}_{self.pps.visit}_binary_im.fits')
-        read.save_binary_eigen_fits(filename,
+        save_binary_eigen_fits(filename,
                           self.im_att[:,0],
                           self.mjd2bjd(self.im_att[:,0]),
                           flux0,

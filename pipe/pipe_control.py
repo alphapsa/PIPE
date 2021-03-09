@@ -9,10 +9,10 @@ Top level routines for using PIPE, to be called by scripts etc.
 import os
 import pickle
 import numpy as np
-import psf_phot
-import read
-import make_multi_psf
-from spline_pca import SplinePCA
+from .psf_phot import PsfPhot
+from .read import lightcurve
+from .make_multi_psf import MultiPSFMaker
+from .spline_pca import SplinePCA
 
 
 class PipeControl():
@@ -31,7 +31,7 @@ class PipeControl():
         pre-processing step is skipped.
         """
         os.makedirs(self.pps.outdir, exist_ok=True)
-        self.pp = psf_phot.PsfPhot(self.pps)
+        self.pp = PsfPhot(self.pps)
         self.pp.mess(f'--- {self.pps.name}/{self.pps.visit} (version {self.pps.version})')
         if pproc: self.pp.pre_process()
 
@@ -86,7 +86,7 @@ class PipeControl():
             self.pre_proc()
         if lib_num is None:
             lib_num = self.pp.find_next_lib_num(self.pp.psf_name)
-        pm = make_multi_psf.MultiPSFMaker(self.pp)
+        pm = MultiPSFMaker(self.pp)
         sa_ranges = pm.find_ranges(phase=phase, sub_orbits=sub_orbits)
         if klip is None:
             klip = len(sa_ranges)
@@ -132,13 +132,13 @@ class PipeControl():
         Returns DRP dict.
         """
         if desc == 'DEFAULT':
-            return read.lightcurve(self.pps.file_lc_default)
+            return lightcurve(self.pps.file_lc_default)
         if desc == 'OPTIMAL':
-            return read.lightcurve(self.pps.file_lc_optimal)
+            return lightcurve(self.pps.file_lc_optimal)
         if desc == 'RINF':
-            return read.lightcurve(self.pps.file_lc_rinf)
+            return lightcurve(self.pps.file_lc_rinf)
         if desc == 'RSUP':
-            return read.lightcurve(self.pps.file_lc_rsup)
+            return lightcurve(self.pps.file_lc_rsup)
         raise Exception(f'[load_drp] Error: {desc} not defined')
 
 
@@ -147,7 +147,7 @@ class PipeControl():
         """
         filename = os.path.join(self.pps.outdir,
                                 f'{self.pps.name}_{self.pps.visit}{postfix}.fits')
-        return read.lightcurve(filename)
+        return lightcurve(filename)
 
     def load_sa(self):
         """Load subarray lightcurve, returns dict data structure
@@ -169,7 +169,7 @@ class PipeControl():
         """Initialise PsfPhot class and do pre-processing on data (i.e. basic 
         processing before photometric PSF extraction).
         """
-        self.pp = psf_phot.PsfPhot(self.pps)
+        self.pp = PsfPhot(self.pps)
         self.pp.mess(f'--- Binary {self.pps.name}/{self.pps.visit} (version {self.pps.version})')
         self.pp.pre_binary()
 
@@ -207,7 +207,7 @@ class PipeControl():
         
         if self.sa_psf_cube0 is None:
             self.process_binary(klip=1)
-        pm = make_multi_psf.MultiPSFMaker(self.pp)
+        pm = MultiPSFMaker(self.pp)
         sa_ranges = pm.find_ranges(phase=phase, sub_orbits=sub_orbits)
         if klip is None:
             klip = len(sa_ranges)
@@ -249,7 +249,7 @@ class PipeControl():
             self.pp.im_noise = self.pp.psf_noise_im(add_noise_sa(model_cube))
             self.pp.im_sub -= self.im_psf_cube1
             
-        pm = make_multi_psf.MultiPSFMaker(self.pp)
+        pm = MultiPSFMaker(self.pp)
         # Produce primary PSF list
         pm.prod_psf(sa_ranges[:klip], lib_num=lib_num)
 
@@ -261,7 +261,7 @@ class PipeControl():
         self.pp.sa_noise = self.pp.psf_noise_sa(add_noise_sa(model_cube))
         self.pp.sa_sub -= self.sa_psf_cube0
 
-        pm = make_multi_psf.MultiPSFMaker(self.pp)
+        pm = MultiPSFMaker(self.pp)
         # Don't use imagettes for secondary
         pm.im = False
 

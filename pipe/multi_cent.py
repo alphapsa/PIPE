@@ -8,8 +8,8 @@ A set of wrappers for multi-threded centering by setting up pools
 and calling methods in the cent module.
 """
 import numpy as np
-import cent
 import multiprocessing as mp
+from .cent import binary_psf, binary_psf_fix, psf as cent_psf
 
 
 def psf(psf_spline, cube, noise_cube, xc, yc,
@@ -38,7 +38,7 @@ def psf(psf_spline, cube, noise_cube, xc, yc,
         
     print('Using {:d} threads in centering pool'.format(nthreads))
     with mp.Pool(nthreads) as p:
-        outparam = p.starmap(cent.psf, inparam)
+        outparam = p.starmap(cent_psf, inparam)
                 
     for m in range(len(cube)):
         res = outparam[m]
@@ -78,7 +78,7 @@ def binary_psf(psf_spline, cube, noise_cube, xc0, yc0, xc1, yc1,
         
     print('Using {:d} threads in centering pool'.format(nthreads))
     with mp.Pool(nthreads) as p:
-        outparam = p.starmap(cent.binary_psf, inparam)
+        outparam = p.starmap(binary_psf, inparam)
                 
     for m in range(len(cube)):
         res = outparam[m]
@@ -122,7 +122,7 @@ def binary_psf_fix(psf_spline, cube, noise_cube, xc0, yc0, dx, dy,
         
     print('Using {:d} threads in centering pool'.format(nthreads))
     with mp.Pool(nthreads) as p:
-        outparam = p.starmap(cent.binary_psf_fix, inparam)
+        outparam = p.starmap(binary_psf_fix, inparam)
                 
     for m in range(len(cube)):
         res = outparam[m]
