@@ -215,6 +215,11 @@ def dark(darkpath, mjd, offset, size):
                 darkfiles.append(filename)
                 with fits.open(filename) as hdul:
                     mjds.append(hdul[1].header['V_STRT_M'])
+
+    if len(mjds) < 1:
+        raise ValueError('Missing dark frame reference file. You may turn off '
+                         'this feature by setting `pps.darksub = False`.')
+
     ind = np.argmin(np.abs(np.array(mjds)-mjd))
     i0, i1, j0, j1 = sub_image_indices(offset, size)
 
