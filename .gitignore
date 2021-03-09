@@ -145,3 +145,5 @@ cython_debug/
 # PIPE specific dirs
 data_root/*
 ref_lib_data/*
+docs/api/*
+pipe/version.py
