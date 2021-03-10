@@ -95,7 +95,8 @@ without imagettes, ``klip=10`` for bright targets.
 
 .. code-block:: python
 
-    pc.process_eigen(klip=10)
+    pps.klip = 10
+    pc.process_eigen()
 
 Output data is put in the output directory. ``residuals_sa.fits`` is
 a fits-cube and contains residuals between fitted PSF and data, and can
