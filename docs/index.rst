@@ -1,16 +1,9 @@
-
-.. code-block::
-
-               _________    ___    _________    _________
-              /  ___   /|  /  /|  /  ___   /|  /  ______/|
-             /  /__/  / / /  / / /  /__/  / / /  /______|/
-            /  ______/ / /  / / /  ______/ / /  ___/|
-           /  /|_____|/ /  / / /  /|_____|/ /  /___|/_
-          /__/ /       /__/ / /__/ /       /_________/|
-          |__|/        |__|/  |__|/        |_________|/
+*************************
+PSF Photometry for CHEOPS
+*************************
 
 Table of contents
-+++++++++++++++++
+^^^^^^^^^^^^^^^^^
 
 .. toctree::
   :maxdepth: 1
@@ -20,7 +13,7 @@ Table of contents
   pipe/api.rst
 
 Background
-++++++++++
+^^^^^^^^^^
 
 PIPE is a photometric extraction package for CHEOPS that is complementing
 the official Data Reduction Pipeline (DRP). While the DRP is using aperture
