@@ -1,14 +1,16 @@
 Getting started
 ---------------
 
-This is an example reduction process.
+This is an example reduction process using PIPE to analyse the In-Orbit
+Commissioning observations of the transit of KELT-11, which are available for
+download on `DACE <http://dace.unige.ch>`_.
 
 .. note::
 
     Due to some python quirks and
     that PIPE uses the multiprocessing module, this script cannot be run in
     an interactive python session but has to be executed independently as
-    "python reduce_Kelt11.py".
+    ``python reduce_Kelt11.py``.
 
 Default is to use up to system CPU cores-1 number of threads. Some parts
 are not parallelised yet, in particular the smearing correction part
@@ -88,8 +90,8 @@ The pipe_control object contains high-level methods
 Process the data using 10 principal PSF components (how many are available
 depends on the library). How many components that is optimal to use
 varies with circumstances. Too few and the varying PSF is not fit. Too
-many and noise is fitted. Rule of thumb: klip=1 to 5 for faint targets
-without imagettes, klip=10 for bright targets.
+many and noise is fitted. Rule of thumb: ``klip=1`` to ``5`` for faint targets
+without imagettes, ``klip=10`` for bright targets.
 
 .. code-block:: python
 
