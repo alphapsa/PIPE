@@ -56,7 +56,7 @@ pps.sa_range = (10, 20)
 # exposure linearity and strongly reduces the flux-background correlation.
 # When we have the non-linearity better characterised, this will go into
 # the regular non-linearity correction.
-pps.non_lin_tweak = True
+pps.non_lin_tweak = False
 
 # The pipe_control object contains high-level methods
 pc = PipeControl(pps)
@@ -66,7 +66,7 @@ pc = PipeControl(pps)
 # varies with circumstances. Too few and the varying PSF is not fit. Too
 # many and noise is fitted. Rule of thumb: klip=1 to 5 for faint targets
 # without imagettes, klip=10 for bright targets.
-pc.process_eigen(klip=10)
+pc.process_eigen()
 
 # Output data is put in the output directory. "residuals_sa.fits" is
 # a fits-cube and contains residuals between fitted PSF and data, and can

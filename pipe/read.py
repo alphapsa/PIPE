@@ -62,7 +62,7 @@ def mask(filename):
         returns numpy array
     """
     with fits.open(filename) as hdul:
-        return hdul[1].data
+        return hdul[1].data.copy()
     raise Exception('[mask] Error: {:s} not found'.format(filename))
 
 
@@ -177,10 +177,10 @@ def sub_image_indices(offset, size):
     """Helper function that computes index ranges
     given a 2D offset and a 2D size
     """
-    i0 = offset[0]
-    i1 = i0+size[0]
-    j0 = offset[1]
-    j1 = j0+size[1]
+    i0 = int(offset[0])
+    i1 = int(i0+size[0])
+    j0 = int(offset[1])
+    j1 = int(j0+size[1])
     return i0, i1, j0, j1
 
 

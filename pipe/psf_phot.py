@@ -124,6 +124,8 @@ class PsfPhot:
                                 # Can be used as a dark current image
         self.im_thermFront_2 = None  # thermFront_2 vector, passed on to save-file
 
+        self.mad_sa = None
+        self.mad_im = None
         # Read and initialise data from files
         self.read_data()
 
@@ -407,7 +409,9 @@ class PsfPhot:
                            bg + self.sa_bg, chi2, w)
         self.save_cube_fits('mask_cube_sa.fits', 
                             np.array(self.sa_mask_cube, dtype='uint8'))
-        self.mess('MAD sa: {:.2f} ppm'.format(mad(scale)))
+
+        self.mad_sa = mad(scale)
+        self.mess('MAD sa: {:.2f} ppm'.format(self.mad_sa))
         self.mess('MAD sa[flag==0]: {:.2f} ppm'.format(mad(scale[flag==0])))
 
         return  scale, bg, flux, err, sel, w
@@ -500,7 +504,9 @@ class PsfPhot:
                            bg + self.im_bg, chi2, w)
         self.save_cube_fits('mask_cube_im.fits',
                             np.array(self.im_mask_cube, dtype='uint8'))
-        self.mess('MAD im: {:.2f} ppm'.format(mad(scale)))
+
+        self.mad_im = mad(scale)
+        self.mess('MAD im: {:.2f} ppm'.format(self.mad_im))
         self.mess('MAD im[flag==0]: {:.2f} ppm'.format(mad(scale[flag==0])))
         
         return  scale, bg, flux, err, sel, w
@@ -699,7 +705,11 @@ class PsfPhot:
         """
         if self.pps.gain is None:
             self.mess('Reading HK and computing gain...')
-            self.pps.gain = np.median(gain(self.pps.file_hk, self.pps.file_gain))
+            gain_timeseries = gain(self.pps.file_hk, self.pps.file_gain)
+            if np.median(gain_timeseries) > 0.05:
+                self.pps.gain = np.median(gain_timeseries)
+            else:
+                self.pps.gain = 1.9
             #self.mess('Gain = {:.4f} e/ADU +/- {:.1f} ppm'.format(self.pps.gain,
             #            1e6*np.std(self.im_gain)/self.pps.gain))
         self.im_gain = self.pps.gain * np.ones(len(self.im_raw))
@@ -1316,10 +1326,11 @@ class PsfPhot:
         """Crop out the imagette region from a subarray. Works for
         both frames and cubes.
         """
-        i0 = self.im_sa_off[0]
-        i1 = i0+self.im_raw[0].shape[1]
-        j0 = self.im_sa_off[1]
-        j1 = j0+self.im_raw[0].shape[0]
+        i0 = int(self.im_sa_off[0]) - 1
+        i1 = int(i0+self.im_raw[0].shape[1])
+        j0 = int(self.im_sa_off[1]) - 1
+        j1 = int(j0+self.im_raw[0].shape[0])
+
         if data.ndim == 2:
             return data[j0:j1, i0:i1]
         return data[:, j0:j1, i0:i1]
