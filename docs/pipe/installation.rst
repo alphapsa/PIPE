@@ -1,5 +1,5 @@
-Install instructions
---------------------
+Installation
+------------
 
 PIPE uses python3 and requires the following modules: numpy, scipy, astropy
 
@@ -26,7 +26,7 @@ data_root and ref_lib_path are defined in pipe_config.py.
 Other than that, the PIPE source files need to be accessible in the path.
 
 Usage
------
++++++
 
 PIPE needs a library of PSF principal components to extract PSF photometry.
 This "eigen" library is generated from derived PSF functions. The PSF functions
