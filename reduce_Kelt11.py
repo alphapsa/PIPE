@@ -66,6 +66,7 @@ pc = PipeControl(pps)
 # varies with circumstances. Too few and the varying PSF is not fit. Too
 # many and noise is fitted. Rule of thumb: klip=1 to 5 for faint targets
 # without imagettes, klip=10 for bright targets.
+pps.klip = 10
 pc.process_eigen()
 
 # Output data is put in the output directory. "residuals_sa.fits" is
