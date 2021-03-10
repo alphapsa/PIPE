@@ -1,7 +1,7 @@
 API
 ===
 
-This is the documentation for pipe.
+This is the API documentation for PIPE.
 
 .. automodapi:: pipe
 
