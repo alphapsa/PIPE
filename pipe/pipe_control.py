@@ -169,6 +169,8 @@ class PipeControl():
         """Initialise PsfPhot class and do pre-processing on data (i.e. basic 
         processing before photometric PSF extraction).
         """
+        self.pps.binary = True
+        os.makedirs(self.pps.outdir, exist_ok=True)    
         self.pp = PsfPhot(self.pps)
         self.pp.mess(f'--- Binary {self.pps.name}/{self.pps.visit} (version {self.pps.version})')
         self.pp.pre_binary()
