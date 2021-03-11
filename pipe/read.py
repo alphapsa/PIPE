@@ -236,10 +236,10 @@ def imagette_offset(filename, frame_range = None):
     to full array, second offset is relative to subarray
     """
     with fits.open(filename) as hdul:
-        x_off = hdul[2].data['X_OFF_FULL_ARRAY'][0]
-        y_off = hdul[2].data['Y_OFF_FULL_ARRAY'][0]
-        x_sa_off = hdul[2].data['X_OFF_SUB_ARRAY'][0]
-        y_sa_off = hdul[2].data['Y_OFF_SUB_ARRAY'][0]
+        x_off = int(hdul[2].data['X_OFF_FULL_ARRAY'][0])
+        y_off = int(hdul[2].data['Y_OFF_FULL_ARRAY'][0])
+        x_sa_off = int(hdul[2].data['X_OFF_SUB_ARRAY'][0])
+        y_sa_off = int(hdul[2].data['Y_OFF_SUB_ARRAY'][0])
         return (x_off, y_off), (x_sa_off, y_sa_off)
     raise Exception('[imagette_offset] Error: {:s} not found'.format(filename))
 
