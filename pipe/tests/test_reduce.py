@@ -3,6 +3,27 @@ from tempfile import TemporaryDirectory
 from shutil import copy
 
 
+def cleanup(tempdir, also_delete):
+    fits = [
+        'SCI_RAW_Attitude',
+        'SCI_RAW_HkExtended',
+        'REF_APP_GainCorrection',
+        'SCI_CAL_SubArray',
+        'SCI_COR_SubArray',
+        'RAW_SubArray',
+        'PIP_COR_PixelFlagMapSubArray',
+        'SCI_COR_Lightcurve-DEFAULT',
+        'SCI_COR_Lightcurve-OPTIMAL',
+        'SCI_COR_Lightcurve-RINF',
+        'SCI_COR_Lightcurve-RSUP',
+        'EXT_PRE_StarCatalogue',
+        'SCI_RAW_Imagette'
+    ] + also_delete
+
+    for file in fits:
+        os.remove(os.path.join(tempdir, file + ".fits"))
+
+
 def test_end_to_end():
     """
     Run locally with:
@@ -51,3 +72,9 @@ def test_end_to_end():
 
         assert pc.pp.mad_im < 5
         assert pc.pp.mad_sa < 1
+
+        also_delete = [
+            os.path.join(tempdir, 'CH_TU2020-02-18T06-15-13_REF_APP_GainCorrection_V0109.fits'),
+            os.path.join(tempdir, 'nonlin.txt')
+        ]
+        cleanup(tempdir, also_delete)
