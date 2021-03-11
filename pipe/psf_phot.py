@@ -32,7 +32,7 @@ from .multi_cent import (
 from .multi_psf import fit as multi_psf_fit, fit_binary as multi_psf_fit_binary
 from .pipe_log import PipeLog
 from .read import (
-    imagette_offset, datacube, mask as read_mask, attitude, gain,
+    imagette_offset, datacube, mask as read_mask, attitude, gain as read_gain,
     ron as read_ron, thermFront_2, mjd2bjd, nonlinear, flatfield, starcat,
     save_eigen_fits, save_binary_eigen_fits, sub_image_indices,
     dark as read_dark
@@ -703,7 +703,7 @@ class PsfPhot:
         """
         if self.pps.gain is None:
             self.mess('Reading HK and computing gain...')
-            self.pps.gain = np.median(read.gain(self.pps.file_hk, self.pps.file_gain))
+            self.pps.gain = np.median(read_gain(self.pps.file_hk, self.pps.file_gain))
 
             #self.mess('Gain = {:.4f} e/ADU +/- {:.1f} ppm'.format(self.pps.gain,
             #            1e6*np.std(self.im_gain)/self.pps.gain))
