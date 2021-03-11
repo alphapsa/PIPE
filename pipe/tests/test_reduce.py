@@ -4,6 +4,9 @@ from shutil import copy
 
 
 def cleanup(tempdir, also_delete):
+    """
+    Needed to cleanup the TemporaryDirectory on Windows
+    """
     fits = [
         'SCI_RAW_Attitude',
         'SCI_RAW_HkExtended',
@@ -21,7 +24,9 @@ def cleanup(tempdir, also_delete):
     ] + also_delete
 
     for file in fits:
-        os.remove(os.path.join(tempdir, file + ".fits"))
+        path_to_delete = os.path.join(tempdir, file + ".fits")
+        if os.path.exists(path_to_delete):
+            os.remove(path_to_delete)
 
 
 def test_end_to_end():
@@ -77,4 +82,5 @@ def test_end_to_end():
             'CH_TU2020-02-18T06-15-13_REF_APP_GainCorrection_V0109.fits',
             'nonlin.txt'
         ]
+        
         cleanup(tempdir, also_delete)
