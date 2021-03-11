@@ -16,6 +16,7 @@ import numpy as np
 from scipy import interpolate
 from astropy.io import fits
 
+fits.Conf.use_memmap = False
 
 def datacube(filename, frame_range=None):
     """Read CHEOPS datacube format, either subarray or imagettes.
