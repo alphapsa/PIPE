@@ -69,14 +69,14 @@ def generate_fits_files(tmpdir, psflib):
                 {
                     'TEXPTIME': exptime,
                     'EXPTIME': exptime,
+                    'VOD_OFF': 22,
+                    'VRD_OFF': 9,
+                    'VOG_OFF': -5.75,
+                    'VSS_OFF': 8.8,
+                    'TEMP_OFF': -40,
                 },
             'data':
                 {
-                    'VOD_OFF': 22 * unit_vector,
-                    'VRD_OFF': 9 * unit_vector,
-                    'VOG_OFF': -5.75 * unit_vector,
-                    'VSS_OFF': 8.8 * unit_vector,
-                    'TEMP_OFF': -40 * unit_vector,
                     'GAIN_NOM': 0.01 * unit_vector,
                     'FACTOR': unit_vector - 1,
                     'EXP_VOD': unit_vector,
