@@ -43,7 +43,8 @@ def lightcurve(filename):
          returns a numpy dict table
     """
     with fits.open(filename) as hdul:
-        return hdul[1].data.copy()
+        lc = hdul[1].data
+        return lc
     raise Exception('[lightcurve] Error: \"{:s}\" not found'.format(filename))
 
 
@@ -62,7 +63,8 @@ def mask(filename):
         returns numpy array
     """
     with fits.open(filename) as hdul:
-        return hdul[1].data.copy()
+        m = hdul[1].data
+        return m
     raise Exception('[mask] Error: {:s} not found'.format(filename))
 
 
@@ -98,7 +100,8 @@ def starcat(filename, colstr, entry=0):
     column string colstr and entry row
     """
     with fits.open(filename) as hdul:
-        return hdul[1].data[colstr][entry]
+        val = hdul[1].data[colstr][entry]
+        return val
     raise Exception('[starcat] Error: {:s} not found'.format(filename))
     
 
