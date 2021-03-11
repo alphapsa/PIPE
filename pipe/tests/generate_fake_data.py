@@ -74,10 +74,10 @@ def generate_fits_files(tmpdir, psflib):
                     'VOG_OFF': -5.75,
                     'VSS_OFF': 8.8,
                     'TEMP_OFF': -40,
+                    'GAIN_NOM': 0.01,
                 },
             'data':
                 {
-                    'GAIN_NOM': 0.01 * unit_vector,
                     'FACTOR': unit_vector - 1,
                     'EXP_VOD': unit_vector,
                     'EXP_VRD': unit_vector,
