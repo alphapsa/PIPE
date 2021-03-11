@@ -32,14 +32,19 @@ def test_end_to_end():
             os.path.join(tempdir, 'nonlin.txt')
         )
 
-        pps = PipeParam('example', '101',
-                        datapath=tempdir, calibpath=tempdir)
+        pps = PipeParam(
+            'example', '101', datapath=tempdir, calibpath=tempdir
+        )
         pps.darksub = False
         pps.mask_badpix = False
+        pps.smear_corr = False
         pps.ccdsize = (200, 200)
         pps.psflib = psflib
         pps.gain = 1.9
-        
+        pps.non_lin = False
+        pps.save_maskcube = False
+        pps.save_resid_cube = False
+
         pc = PipeControl(pps)
 
         pc.process_eigen()
