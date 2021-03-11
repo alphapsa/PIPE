@@ -4,6 +4,10 @@ from shutil import copy
 
 
 def test_end_to_end():
+    """
+    Run locally with:
+    python -c "from pipe.tests.test_reduce import test_end_to_end as f; f()"
+    """
     psflib = os.path.join(
         os.path.dirname(__file__), os.path.pardir,
         'data', 'eigenlib_815_281_70_0.pkl'
@@ -15,8 +19,6 @@ def test_end_to_end():
 
         from ..pipe_param import PipeParam
         from ..pipe_control import PipeControl
-
-        print('path exists', os.path.exists(os.path.join(tempdir, 'SCI_RAW_HkExtended.fits')))
 
         copy(
             os.path.join(os.path.dirname(__file__), os.path.pardir, 'data',
@@ -32,7 +34,6 @@ def test_end_to_end():
 
         pps = PipeParam('example', '101',
                         datapath=tempdir, calibpath=tempdir)
-        pps.psflib = 0
         pps.darksub = False
         pps.mask_badpix = False
         pps.ccdsize = (200, 200)

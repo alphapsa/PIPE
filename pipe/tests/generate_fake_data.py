@@ -74,7 +74,7 @@ def generate_fits_files(tmpdir, psflib):
                     'VOG_OFF': -5.75,
                     'VSS_OFF': 8.8,
                     'TEMP_OFF': -40,
-                    'GAIN_NOM': 0.01,
+                    'GAIN_NOM': 1,
                 },
             'data':
                 {
