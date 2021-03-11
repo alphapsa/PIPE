@@ -1318,9 +1318,9 @@ class PsfPhot:
         """Crop out the imagette region from a subarray. Works for
         both frames and cubes.
         """
-        i0 = int(self.im_sa_off[0]) - 1
+        i0 = int(self.im_sa_off[0])
         i1 = int(i0+self.im_raw[0].shape[1])
-        j0 = int(self.im_sa_off[1]) - 1
+        j0 = int(self.im_sa_off[1])
         j1 = int(j0+self.im_raw[0].shape[0])
 
         if data.ndim == 2:

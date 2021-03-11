@@ -38,7 +38,8 @@ def test_end_to_end():
         pps.mask_badpix = False
         pps.ccdsize = (200, 200)
         pps.psflib = psflib
-
+        pps.gain = 1.9
+        
         pc = PipeControl(pps)
 
         pc.process_eigen()

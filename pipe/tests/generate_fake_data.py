@@ -171,10 +171,10 @@ def generate_fits_files(tmpdir, psflib):
     })
 
     sci_raw_table = {
-        "X_OFF_FULL_ARRAY": unit_vector,
-        "Y_OFF_FULL_ARRAY": unit_vector,
-        "X_OFF_SUB_ARRAY": unit_vector,
-        "Y_OFF_SUB_ARRAY": unit_vector,
+        "X_OFF_FULL_ARRAY": 0 * unit_vector,
+        "Y_OFF_FULL_ARRAY": 0 * unit_vector,
+        "X_OFF_SUB_ARRAY": 0 * unit_vector,
+        "Y_OFF_SUB_ARRAY": 0 * unit_vector,
         "MJD_TIME": times,
         "BJD_TIME": bjd
     }
