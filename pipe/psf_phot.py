@@ -699,11 +699,12 @@ class PsfPhot:
         """
         if self.pps.gain is None:
             self.mess('Reading HK and computing gain...')
-            self.pps.gain = np.median(gain(self.pps.file_hk, self.pps.file_gain))
+            self.pps.gain = np.median(read.gain(self.pps.file_hk, self.pps.file_gain))
             #self.mess('Gain = {:.4f} e/ADU +/- {:.1f} ppm'.format(self.pps.gain,
             #            1e6*np.std(self.im_gain)/self.pps.gain))
-        self.im_gain = self.pps.gain * np.ones(len(self.im_raw))
-        self.mess('Defined gain = {:.4f} e/ADU'.format(self.pps.gain))
+        if self.pps.file_im is not None:
+            self.im_gain = self.pps.gain * np.ones(len(self.im_raw))
+            self.mess('Defined gain = {:.4f} e/ADU'.format(self.pps.gain))
 
 
     def read_ron(self):

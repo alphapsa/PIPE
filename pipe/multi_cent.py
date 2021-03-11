@@ -121,7 +121,7 @@ def binary_psf_fix(psf_spline, cube, noise_cube, xc0, yc0, dx, dy,
         else: 
             mask0 = mask
         inparam.append((psf_spline, frame, noise,
-                        xc0[m], yc0[m], dx, dy, norm0, norm1,
+                        xc0[m], yc0[m], dx[m], dy[m], norm0, norm1,
                          mask0, radius))
         
     print('Using {:d} threads in centering pool'.format(nthreads))

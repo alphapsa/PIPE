@@ -91,7 +91,7 @@ def fit_binary(psf_list0, psf_list1, data_cube, noise_cube, mask, xc0, yc0,
             mask0 = mask[n]
         else:
             mask0 = mask
-        if no_fit:
+        if no_fit[n]:
             continue
         frame = data_cube[n]
         noise = noise_cube[n]
@@ -104,7 +104,7 @@ def fit_binary(psf_list0, psf_list1, data_cube, noise_cube, mask, xc0, yc0,
 
     m = 0
     for n in range(Ndata):
-        if no_fit:
+        if no_fit[n]:
             continue
         psf_cube0[n], psf_cube1[n], bg[n], kmat0, kmat1, scale0[n], scale1[n], w0[n], w1[n] = outparam[m]
         m += 1
