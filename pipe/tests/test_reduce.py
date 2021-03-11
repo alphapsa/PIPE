@@ -74,7 +74,7 @@ def test_end_to_end():
         assert pc.pp.mad_sa < 1
 
         also_delete = [
-            os.path.join(tempdir, 'CH_TU2020-02-18T06-15-13_REF_APP_GainCorrection_V0109.fits'),
-            os.path.join(tempdir, 'nonlin.txt')
+            'CH_TU2020-02-18T06-15-13_REF_APP_GainCorrection_V0109.fits',
+            'nonlin.txt'
         ]
         cleanup(tempdir, also_delete)
