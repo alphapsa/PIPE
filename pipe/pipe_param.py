@@ -16,7 +16,8 @@ class PipeParam:
     """ PipeParam keeps all parameters relevant for the extraction, with
     default values given for most.
     """
-    def __init__(self, name, visit, version=None, outdir=None, sa_range=None):
+    def __init__(self, name, visit, version=None, outdir=None, sa_range=None,
+                 datapath=None, calibpath=None):
         """ Initializes parameters with their default values. Name is the
         subdirectory to datapath where the data for the present visit resideds.
         Version is the version of the output files. If left to the default None,
@@ -25,9 +26,12 @@ class PipeParam:
         self.name = name         # Name of target; also name of
                                  # subdirectory with visits
         self.visit = visit       # Name of visit; also name of
-                                 # subdirectory with data                                
-        self.datapath = os.path.join(data_root, name, visit) # Directory path of data
-                                                        # from single visit
+                                 # subdirectory with data
+        if datapath is None:
+            self.datapath = os.path.join(data_root, name, visit) # Directory path of data
+                                                            # from single visit
+        else:
+            self.datapath = datapath
         if version is None:      # Integer version of output files
             self.version = self.find_version()
         else:
@@ -37,7 +41,10 @@ class PipeParam:
         self.outdir = outdir
         
         self.file_log = os.path.join(outdir, 'logfile.txt')
-        self.calibpath = ref_lib_path  # Directory where calibration files are located
+        if calibpath is None:
+            self.calibpath = ref_lib_path  # Directory where calibration files are located
+        else:
+            self.calibpath = calibpath
         self.define_filenames()  # Find relevant filenames in data paths
         
         self.Teff = None         # Effective temperature of target, used for 

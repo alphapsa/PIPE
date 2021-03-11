@@ -56,7 +56,7 @@ pps.sa_range = (10, 20)
 # exposure linearity and strongly reduces the flux-background correlation.
 # When we have the non-linearity better characterised, this will go into
 # the regular non-linearity correction.
-pps.non_lin_tweak = True
+pps.non_lin_tweak = False
 
 # The pipe_control object contains high-level methods
 pc = PipeControl(pps)
