@@ -68,12 +68,9 @@ class star_bg:
         return 0
 
     def image(self, x0, y0, rolldeg, psf_fun, shape=None,
-              target=1, limflux=0, single_id=None, max_psf_rad=70):
+              skip=[0], limflux=0, single_id=None, max_psf_rad=70):
         """Produces image with background stars at defined roll angle.
-        target is how many entries should be skipped from the beginning
-        of the catalogue. E.g., with target=1 the first entry is skipped, which
-        is the target itself and not a background star. Similarly, for binaries
-        set target=2 to skip the first 2 entries. limflux is at what fractional
+        skip is a list of entries to be skipped. limflux is at what fractional
         flux of the target background stars should be ignored. The signle_id is
         to select and draw an image of the selected star only.
         """        
@@ -86,11 +83,12 @@ class star_bg:
         ret_img = np.zeros(shape)
         
         if single_id is None:
-            id_range = range(target, self.catsize)
+            id_range = range(self.catsize)
         else:
             id_range = [single_id]
         
         for n in id_range:
+            if n in skip: continue
             # Skip faint stars
             if self.fscale[n] < limflux: continue
             
@@ -126,7 +124,7 @@ class star_bg:
         return ret_img
 
     def rotblur(self, x0, y0, rolldeg, blurdeg, psf_fun,
-                oversample=1, shape=None, target=1, limflux=1e-3,
+                oversample=1, shape=None, skip=[0], limflux=1e-3,
                 single_id=None, max_psf_rad=70):
         """Returns an image (as defined by previous method) blurred
         by rotation. blurdeg is how many degrees the field rotates
@@ -140,7 +138,7 @@ class star_bg:
         ret_img = np.zeros(shape)
         for roll in rolldegs:
             ret_img += self.image(x0, y0, roll, psf_fun,
-                                  shape=shape, target=target,
+                                  shape=shape, skip=skip,
                                   limflux=limflux, single_id=single_id,
                                   max_psf_rad=max_psf_rad)/N
         return ret_img
@@ -153,7 +151,7 @@ class star_bg:
         if shape == None:
             shape = self.shape
         rb = self.rotblur(x0, y0, rolldeg, blurdeg, psf_fun,
-                oversample, shape, target=0, limflux=limflux,
+                oversample, shape, skip=[], limflux=limflux,
                 max_psf_rad=max_psf_rad)
         return np.sum(rb, axis=0)
 

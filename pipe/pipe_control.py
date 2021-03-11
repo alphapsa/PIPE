@@ -181,6 +181,7 @@ class PipeControl():
         if they exist. Saves PSF models for the two components to class
         variables. 
         """
+        self.pps.binary = True
         if self.pp is None:
             self.pre_binary()
         self.sa_psf_cube0, self.sa_psf_cube1, self.sa_bg = \
