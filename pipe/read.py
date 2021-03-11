@@ -44,8 +44,7 @@ def lightcurve(filename):
     """
     with fits.open(filename) as hdul:
         lc = hdul[1].data
-        return lc
-    raise Exception('[lightcurve] Error: \"{:s}\" not found'.format(filename))
+    return lc
 
 
 def fits_cube(filename, level=0):
@@ -64,8 +63,7 @@ def mask(filename):
     """
     with fits.open(filename) as hdul:
         m = hdul[1].data
-        return m
-    raise Exception('[mask] Error: {:s} not found'.format(filename))
+    return m
 
 
 def nonlinear(filename):
@@ -91,8 +89,7 @@ def attitude(filename):
         outparam[:,1] = hdul[1].data['SC_RA']
         outparam[:,2] = hdul[1].data['SC_DEC']
         outparam[:,3] = hdul[1].data['SC_ROLL_ANGLE']
-        return outparam
-    raise Exception('[attitude] Error: {:s} not found'.format(filename))
+    return outparam
 
 
 def starcat(filename, colstr, entry=0):
@@ -101,17 +98,15 @@ def starcat(filename, colstr, entry=0):
     """
     with fits.open(filename) as hdul:
         val = hdul[1].data[colstr][entry]
-        return val
-    raise Exception('[starcat] Error: {:s} not found'.format(filename))
-    
+    return val
+
 
 def raw_param(filename, data_index, param_name):
     """Reads the specific sensor from the CHEOPS sa raw file.
     """
     with fits.open(filename) as hdul:
         ret_param = hdul[data_index].data[param_name].copy()
-        return ret_param
-    raise Exception('[raw_param] Error: {:s} not found'.format(filename))
+    return ret_param
 
 
 def ron(filename):
@@ -167,13 +162,12 @@ def thermFront_2(filename):
 
 def mjd2bjd(filename):
     with fits.open(filename) as hdul:
-        mjd = hdul[2].data['MJD_TIME']
-        bjd = hdul[2].data['BJD_TIME']
-        ifun = interpolate.interp1d(mjd, bjd,
-                           bounds_error = False, 
-                           fill_value = 'extrapolate')
-        return ifun
-    raise Exception('[mjd2bjd] Error: {:s} not found'.format(filename))
+        mjd = np.asarray(hdul[2].data['MJD_TIME'])
+        bjd = np.asarray(hdul[2].data['BJD_TIME'])
+    ifun = interpolate.interp1d(mjd, bjd,
+                       bounds_error = False,
+                       fill_value = 'extrapolate')
+    return ifun
 
 
 def sub_image_indices(offset, size):
@@ -201,8 +195,7 @@ def flatfield(filename, Teff, offset, size):
         i0, i1, j0, j1 = sub_image_indices(offset, size)
         ff0 = hdul[1].data[idx, j0:j1, i0:i1]
         ff1 = hdul[1].data[idx+1, j0:j1, i0:i1]
-        return ff0*(1-a) + ff1*a
-    raise Exception('[flatfield] Error: {:s} not found'.format(filename))
+    return ff0*(1-a) + ff1*a
 
 
 def dark(darkpath, mjd, offset, size):
@@ -229,8 +222,8 @@ def dark(darkpath, mjd, offset, size):
     with fits.open(darkfiles[ind]) as hdul:
         dark = hdul[1].data[0, j0:j1, i0:i1]
         dark_err = hdul[1].data[1, j0:j1, i0:i1]
-        return dark, dark_err
-    return np.zeros(size), np.zeros(size)
+    return dark, dark_err
+    #return np.zeros(size), np.zeros(size)
 
 
 def imagette_offset(filename, frame_range = None):
@@ -243,8 +236,8 @@ def imagette_offset(filename, frame_range = None):
         y_off = hdul[2].data['Y_OFF_FULL_ARRAY'][0]
         x_sa_off = hdul[2].data['X_OFF_SUB_ARRAY'][0]
         y_sa_off = hdul[2].data['Y_OFF_SUB_ARRAY'][0]
-        return (x_off, y_off), (x_sa_off, y_sa_off)
-    raise Exception('[imagette_offset] Error: {:s} not found'.format(filename))
+    return (x_off, y_off), (x_sa_off, y_sa_off)
+    #raise Exception('[imagette_offset] Error: {:s} not found'.format(filename))
 
 
 
