@@ -104,10 +104,11 @@ def fit(psf_list, frame, noise, mask, xc, yc,
     
 
 def fit_binary(psf_list0, psf_list1, frame, noise, mask, xc0, yc0, xc1, yc1,
-                psfrad=70, fitrad=30, krn_scl=0.3, krn_rad=3):
+                psfrad=70, fitrad=30, krn_scl=0.3, krn_rad=3, fix_flux2=None):
     """Fit multiple PSF PCs simultaneousy for binary in single frame. Fits
     for PCs motion blur independently for the two components. PSF libraries
-    are defined for each component.
+    are defined for each component. If fix_flux2 is defined, then the flux
+    of the secondary will be fixed to this value.
     Returns: 
         Fitted PSF to component 0 sampled on frame pixels
         Fitted PSF to component 1 sampled on frame pixels
@@ -213,9 +214,27 @@ def fit_binary(psf_list0, psf_list1, frame, noise, mask, xc0, yc0, xc1, yc1,
     psf_norms1 = psf_integral(psf_list1)
     wsum0 = np.sum(psf_norms0*w[:Npsf])
     wsum1 = np.sum(psf_norms1*w[Npsf:-1])
+    sc0 = np.sum(kvec[:Nk])*wsum0
+    sc1 = np.sum(kvec[Nk:(2*Nk)])*wsum1
+    w0 = w[:Npsf]/wsum0
+    w1 = w[Npsf:-1]/wsum1
 
-    return (psf0, psf1, bg, kmat0, kmat1, np.sum(kvec[:Nk])*wsum0, 
-            np.sum(kvec[Nk:(2*Nk)])*wsum1, w[:Npsf]/wsum0, w[Npsf:-1]/wsum1)
+    if fix_flux2 is not None:
+        # Fix flux of secondary, use derived PSF but change flux to fixed value
+        # Subtract secondary and fit primary
+#        print('Normalisation: {:.2f} ppm'.format(1e6*(fix_flux2/sc1-1)))
+        fit_frame = frame - psf1*fix_flux2/sc1
+        psf0, bg, kmat0, sc0, w0 = fit(psf_list0, fit_frame, noise, mask, xc0, yc0, 
+                fitrad=fitrad, krn_scl=krn_scl, krn_rad=krn_rad, bg_fit=0)        
+        psf0 *= apt0
+        # Subtract primary and fit secondary. Note: this will not necessarily 
+        # result in the same flux for secondary as previously fixed.
+        fit_frame = frame - psf0 - bg
+        psf1, bg_tmp, kmat1, sc1, w1 = fit(psf_list1, fit_frame, noise, mask, xc1, yc1, 
+                fitrad=fitrad, krn_scl=krn_scl, krn_rad=krn_rad, bg_fit=-1)
+        psf1 *= apt1
+
+    return psf0, psf1, bg, kmat0, kmat1, sc0, sc1, w0, w1
 
 
 def _least_square(eq_mat, res_vec, non_negative=False):

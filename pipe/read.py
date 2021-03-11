@@ -43,7 +43,7 @@ def lightcurve(filename):
          returns a numpy dict table
     """
     with fits.open(filename) as hdul:
-        return hdul[1].data
+        return hdul[1].data.copy()
     raise Exception('[lightcurve] Error: \"{:s}\" not found'.format(filename))
 
 
@@ -53,7 +53,7 @@ def fits_cube(filename, level=0):
     """
     with fits.open(filename) as hdul:
         cube = np.array(hdul[level].data, dtype='f8')
-        hdr = hdul[level].header
+        hdr = hdul[level].header.copy()
     return cube, hdr
 
 

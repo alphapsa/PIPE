@@ -4,6 +4,10 @@ PIPE
 .. image:: https://github.com/alphapsa/PIPE/actions/workflows/ci_tests.yml/badge.svg
    :target: https://github.com/alphapsa/PIPE/actions/workflows/ci_tests.yml
 
+.. image:: https://readthedocs.org/projects/pipe-cheops/badge/?version=latest
+   :target: https://pipe-cheops.readthedocs.io/en/latest/?badge=latest
+   :alt: Documentation Status
+
 .. image:: http://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat
     :target: http://www.astropy.org
     :alt: Powered by Astropy Badge

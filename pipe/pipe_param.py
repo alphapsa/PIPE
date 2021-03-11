@@ -81,12 +81,16 @@ class PipeParam:
                                    # at low exposure levels, for both subarrays
                                    # and imagettes
         # Binary parameters
+        self.secondary = 1       # Entry of secondary in starcat (primary is
+                                 # always entry 0)
         self.fitrad = 30         # Use this radius for fitting PSF
         self.psflib0 = None      # Binaries can have separate PSF libraries
         self.psflib1 = None      # defined for the two components
         self.init_flux_ratio = None  # Initial flux ratio estimate between 
                                      # binary components. If left to None, 
                                      # ratio will be read from starcat
+        self.fix_flux2 = True        # Fix the flux of the secondary in a
+                                     # second iteration to improve stability
         self.save_maskcube = True    # Save mask used to fitler out bad
                                      # data (as fits file)
         self.save_resid_cube = True  # Save cube of residuals (as fits file)

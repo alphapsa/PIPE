@@ -140,11 +140,9 @@ def binary_psf_fix(psf_spline, frame, noise, xc0, yc0, dx, dy,
     noise_pix = noise[sel]
     
     def chi(inparam):
-        dx0, dy0, scale0, scale1 = inparam
-        dx1 = dx0 #+ relpos[0]
-        dy1 = dy0 #+ relpos[1]        
-        psf_frame = (scale0 * psf_spline(ycoo0-dy0, xcoo0-dx0) +
-                     scale1 * psf_spline(ycoo1-dy1, xcoo1-dx1))
+        ddx, ddy, scale0, scale1 = inparam
+        psf_frame = (scale0 * psf_spline(ycoo0-ddy, xcoo0-ddx) +
+                     scale1 * psf_spline(ycoo1-ddy, xcoo1-ddx))
         psf_pix = psf_frame[sel]
         return np.sum(np.abs(frame_pix-psf_pix)**2/noise_pix**2)
 
@@ -161,5 +159,4 @@ def binary_psf_fix(psf_spline, frame, noise, xc0, yc0, dx, dy,
         frame_pix = frame[sel]
         noise_pix = noise[sel]
         init_param = res.x
-        #print(res.x)
     return res.x
