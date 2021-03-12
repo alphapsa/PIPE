@@ -13,6 +13,7 @@ multi-threaded routines in the multi_cent module.
 import numpy as np
 from scipy.optimize import minimize
 import warnings
+from .reduce import coo_mat
 
 __all__ = ['flux', 'psf', 'binary_psf', 'binary_psf_fix']
 
@@ -33,7 +34,6 @@ def psf(psf_spline, frame, noise, xc, yc,
     """Use a PSF to find the best matching centre in a frame.
     Uses noise frame to clip bad pixels.
     """
-    from .reduce import coo_mat
 
     c_iter = 4
     clip = 10

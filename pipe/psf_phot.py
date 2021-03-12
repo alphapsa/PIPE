@@ -1532,8 +1532,8 @@ class PsfPhot:
             scale1 = np.interp(t, t0, scale10)
             if self.pps.fix_flux2:
                 fix_flux2 = np.nanmedian(scale10)
-            self.mess('Iter {:d} MAD sa0: {:.2f} ppm'.format(n+1, analyse.mad(scale00)))
-            self.mess('Iter {:d} MAD sa1: {:.2f} ppm'.format(n+1, analyse.mad(scale10)))
+            self.mess('Iter {:d} MAD sa0: {:.2f} ppm'.format(n+1, mad(scale00)))
+            self.mess('Iter {:d} MAD sa1: {:.2f} ppm'.format(n+1, mad(scale10)))
             bg = np.interp(t, t0, bg0)
             self.make_mask_cube_sa(psf_cube0+psf_cube1, radius=self.pps.sa_psfrad,
                                    clip=self.pps.sigma_clip)
@@ -1564,10 +1564,10 @@ class PsfPhot:
                            bg + self.sa_bg, chi2, w0, w1)
         self.save_cube_fits('mask_cube_sa.fits', 
                             np.array(self.sa_mask_cube, dtype='uint8'))
-        self.mess('MAD sa0: {:.2f} ppm'.format(analyse.mad(scale0)))
-        self.mess('MAD sa0[flag==0]: {:.2f} ppm'.format(analyse.mad(scale0[flag==0])))
-        self.mess('MAD sa1: {:.2f} ppm'.format(analyse.mad(scale1)))
-        self.mess('MAD sa1[flag==0]: {:.2f} ppm'.format(analyse.mad(scale1[flag==0])))
+        self.mess('MAD sa0: {:.2f} ppm'.format(mad(scale0)))
+        self.mess('MAD sa0[flag==0]: {:.2f} ppm'.format(mad(scale0[flag==0])))
+        self.mess('MAD sa1: {:.2f} ppm'.format(mad(scale1)))
+        self.mess('MAD sa1[flag==0]: {:.2f} ppm'.format(mad(scale1[flag==0])))
         return psf_cube0, psf_cube1, bg + self.sa_bg
 
 
@@ -1610,8 +1610,8 @@ class PsfPhot:
             scale1 = np.interp(t, t0, scale10)
             if self.pps.fix_flux2:
                 fix_flux2 = np.nanmedian(scale10)
-            self.mess('Iter {:d} MAD im0: {:.2f} ppm'.format(n+1, analyse.mad(scale00)))
-            self.mess('Iter {:d} MAD im1: {:.2f} ppm'.format(n+1, analyse.mad(scale10)))
+            self.mess('Iter {:d} MAD im0: {:.2f} ppm'.format(n+1, mad(scale00)))
+            self.mess('Iter {:d} MAD im1: {:.2f} ppm'.format(n+1, mad(scale10)))
             bg = np.interp(t, t0, bg0)
             self.make_mask_cube_im(psf_cube0+psf_cube1, radius=self.pps.im_psfrad,
                                    clip=self.pps.sigma_clip)
@@ -1641,10 +1641,10 @@ class PsfPhot:
                            bg + self.im_bg, chi2, w0, w1)
         self.save_cube_fits('mask_cube_im.fits', 
                             np.array(self.im_mask_cube, dtype='uint8'))
-        self.mess('MAD im0: {:.2f} ppm'.format(analyse.mad(scale0)))
-        self.mess('MAD im0[flag==0]: {:.2f} ppm'.format(analyse.mad(scale0[flag==0])))
-        self.mess('MAD im1: {:.2f} ppm'.format(analyse.mad(scale1)))
-        self.mess('MAD im1[flag==0]: {:.2f} ppm'.format(analyse.mad(scale1[flag==0])))
+        self.mess('MAD im0: {:.2f} ppm'.format(mad(scale0)))
+        self.mess('MAD im0[flag==0]: {:.2f} ppm'.format(mad(scale0[flag==0])))
+        self.mess('MAD im1: {:.2f} ppm'.format(mad(scale1)))
+        self.mess('MAD im1[flag==0]: {:.2f} ppm'.format(mad(scale1[flag==0])))
         return psf_cube0, psf_cube1,  bg + self.im_bg
 
 
