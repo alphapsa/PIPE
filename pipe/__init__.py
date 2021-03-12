@@ -2,6 +2,7 @@
 
 from .version import __version__
 
+from .config import conf
 from .analyse import mad, psf_phot_cube, sigma_clip
 from .cent import (
     flux as cent_flux,
