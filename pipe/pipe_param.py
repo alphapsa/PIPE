@@ -9,7 +9,7 @@ default values. Some configuration (for data filepaths) is also
 present here, but should be moved into a configuration file.
 """
 import os
-from .pipe_config import data_root, ref_lib_path
+from .config import conf
 
 
 class PipeParam:
@@ -28,7 +28,7 @@ class PipeParam:
         self.visit = visit       # Name of visit; also name of
                                  # subdirectory with data
         if datapath is None:
-            self.datapath = os.path.join(data_root, name, visit) # Directory path of data
+            self.datapath = os.path.join(conf.data_root, name, visit) # Directory path of data
                                                             # from single visit
         else:
             self.datapath = datapath
@@ -42,7 +42,7 @@ class PipeParam:
         
         self.file_log = os.path.join(outdir, 'logfile.txt')
         if calibpath is None:
-            self.calibpath = ref_lib_path  # Directory where calibration files are located
+            self.calibpath = conf.ref_lib_path  # Directory where calibration files are located
         else:
             self.calibpath = calibpath
         self.define_filenames()  # Find relevant filenames in data paths
