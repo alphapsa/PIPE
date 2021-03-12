@@ -12,7 +12,6 @@ photometry.
 import numpy as np
 import os
 from .read import lightcurve
-from .config import conf
 
 
 def mad(series):
@@ -165,6 +164,7 @@ def sigma_clip(data, clip=5, niter=5):
 def load_lc(name, visit, version=0, postfix=''):
     """Load lightcurve, returns dict data structure
     """
+    from .config import conf
     filename = os.path.join(conf.data_root,
                             name,
                             visit,

@@ -2,7 +2,6 @@
 
 from .version import __version__
 
-from .config import conf
 from .analyse import mad, psf_phot_cube, sigma_clip
 from .cent import (
     flux as cent_flux,
@@ -27,3 +26,5 @@ from .reduce import (
     pix_mat, make_maskcube, rough_contrast, check_low, check_val, check_pos,
     check_motion, check_mask
 )
+from .pipe_control import PipeControl
+from .pipe_param import PipeParam

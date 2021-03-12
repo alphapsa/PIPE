@@ -27,13 +27,12 @@ used, so no need to derive new PSF models for every visit.
 
 # The pipe_param holds input parameters
 # pipe_control contains the high-level function that controls PIPE
-from pipe import pipe_param
-from pipe.pipe_control import PipeControl
+from pipe import PipeParam, PipeControl
 
 # Initialise parameter object, see pipe_param.py for default parameters.
 # Here we have put the data from DACE in the "DATADIR/Kelt-11/101/"-
 # directory.
-pps = pipe_param.PipeParam('Kelt-11', '101')
+pps = PipeParam('Kelt-11', '101')
 
 # Set sub-array range to extract a light curve for only a fraction of the
 # full observation. Mostly used for testing with shorter execution time.
