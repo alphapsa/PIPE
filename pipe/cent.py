@@ -17,6 +17,7 @@ import warnings
 
 __all__ = ['flux', 'psf', 'binary_psf', 'binary_psf_fix']
 
+
 def flux(cube):
     """Compute center of pixel values for cube of rectangular 
     frames. (xc, yc) is returned (in pixel coordinates of axis 1 and 2)
@@ -74,6 +75,7 @@ def binary_psf(psf_spline, frame, noise, xc0, yc0, xc1, yc1,
     a frame, using initial guessed positions. init_flux_ratio is star0/star1
     Uses noise frame to clip bad pixels.
     """
+    from .reduce import coo_mat
     c_iter = 4
     clip = 10
     xmat0, ymat0 = coo_mat(frame.shape, xc0, yc0)
@@ -121,6 +123,7 @@ def binary_psf_fix(psf_spline, frame, noise, xc0, yc0, dx, dy,
     init_flux_ratio is star0/star1. Uses noise frame to clip bad pixels.
     Ignore pixels outside of radius from each compnonent.
     """
+    from .reduce import coo_mat
     c_iter = 4
     clip = 10
     xmat0, ymat0 = coo_mat(frame.shape, xc0, yc0)
