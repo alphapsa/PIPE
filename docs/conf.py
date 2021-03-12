@@ -97,7 +97,7 @@ copyright = '{0}, {1}'.format(
 # built documents.
 
 import_module(project)
-package = sys.modules[setup_cfg['name']]
+package = sys.modules[project]
 
 # The short X.Y version.
 version = package.__version__.split('-', 1)[0]

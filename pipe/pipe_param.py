@@ -9,7 +9,6 @@ default values. Some configuration (for data filepaths) is also
 present here, but should be moved into a configuration file.
 """
 import os
-from .config import conf
 
 
 class PipeParam:
@@ -23,6 +22,7 @@ class PipeParam:
         Version is the version of the output files. If left to the default None,
         it will look for the highest existing version and add 1.
         """
+        from .config import conf
         self.name = name         # Name of target; also name of
                                  # subdirectory with visits
         self.visit = visit       # Name of visit; also name of

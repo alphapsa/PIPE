@@ -38,7 +38,8 @@ PSF-files that are constructed by PIPE will be stored within ``cache_dir`` in
 components, also generated.
 
 If you would like to direct PIPE towards different locations for the
-``data_root`` and ``ref_lib_data`` directories, you can set them by setting
+``data_root`` and ``ref_lib_data`` directories temporarily (within the specific
+Python instance you're currently running), you can set them by setting
 the following variables:
 
 .. code-block:: python
@@ -47,6 +48,10 @@ the following variables:
 
     conf.data_root = 'path/to/data_root'
     conf.ref_lib_data = 'path/to/ref_lib_data
+
+If you'd like to set the path to the ``data_root`` and ``ref_lib_data``
+directories more permanently, for each and every time PIPE accesses them, you
+can edit the paths in ``pipe/config/conf.json`` and run ``python setup.py install``.
 
 Usage
 +++++
