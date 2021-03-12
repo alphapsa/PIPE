@@ -1,6 +1,14 @@
 import os
 import astropy.config as astropyconfig
 
+# Get configuration information from setup.cfg
+from configparser import ConfigParser
+conf = ConfigParser()
+
+conf.read([os.path.join(os.path.dirname(__file__), '..', 'setup.cfg')])
+default_paths = dict(conf.items('default_paths'))
+
+
 class ConfigNamespace(astropyconfig.ConfigNamespace):
     rootname = 'pipe-cheops'
 
@@ -9,9 +17,14 @@ class ConfigItem(astropyconfig.ConfigItem):
     rootname = 'pipe-cheops'
 
 
-cache_dir = os.path.join(astropyconfig.get_cache_dir(), '.pipe-cheops')
-REF_LIB_PATH = os.path.join(cache_dir, 'ref_lib_data')
-DATA_ROOT = os.path.join(cache_dir, 'data_root')
+if (len(default_paths['data_root']) == 0 and
+        len(default_paths['ref_lib_data']) == 0):
+    cache_dir = os.path.join(astropyconfig.get_cache_dir(), '.pipe-cheops')
+    REF_LIB_PATH = os.path.join(cache_dir, 'ref_lib_data')
+    DATA_ROOT = os.path.join(cache_dir, 'data_root')
+else:
+    DATA_ROOT = default_paths['data_root']
+    REF_LIB_PATH = default_paths['ref_lib_data']
 
 
 class Conf(ConfigNamespace):
