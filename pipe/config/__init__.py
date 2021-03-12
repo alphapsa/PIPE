@@ -5,7 +5,7 @@ import astropy.config as astropyconfig
 from configparser import ConfigParser
 conf = ConfigParser()
 
-conf.read([os.path.join(os.path.dirname(__file__), '..', 'setup.cfg')])
+conf.read([os.path.join(os.path.dirname(__file__), '..', '..', 'setup.cfg')])
 default_paths = dict(conf.items('default_paths'))
 
 
