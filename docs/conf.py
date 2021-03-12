@@ -6,6 +6,16 @@
 # full list see the documentation:
 # http://www.sphinx-doc.org/en/master/config
 
+import os
+import sys
+import datetime
+from importlib import import_module
+
+try:
+    from sphinx_astropy.conf.v1 import *  # noqa
+except ImportError:
+    print('ERROR: the documentation requires the sphinx-astropy package to be installed')
+    sys.exit(1)
 
 # -- Project information -----------------------------------------------------
 
@@ -66,3 +76,30 @@ html_theme = 'alabaster'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 # html_static_path = ['_static']
+
+# Get configuration information from setup.cfg
+from configparser import ConfigParser
+conf = ConfigParser()
+
+conf.read([os.path.join(os.path.dirname(__file__), '..', 'setup.cfg')])
+setup_cfg = dict(conf.items('metadata'))
+
+# -- Project information ------------------------------------------------------
+
+# This does not *have* to match the package name, but typically does
+project = "pipe"
+author = setup_cfg['author']
+copyright = '{0}, {1}'.format(
+    datetime.datetime.now().year, setup_cfg['author'])
+
+# The version info for the project you're documenting, acts as replacement for
+# |version| and |release|, also used in various other places throughout the
+# built documents.
+
+import_module(project)
+package = sys.modules[setup_cfg['name']]
+
+# The short X.Y version.
+version = package.__version__.split('-', 1)[0]
+# The full version, including alpha/beta/rc tags.
+release = package.__version__

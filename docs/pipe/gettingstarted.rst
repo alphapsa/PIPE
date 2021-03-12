@@ -33,15 +33,14 @@ First, we import the PIPE objects that we'll need access to:
 
 .. code-block:: python
 
-    from pipe import pipe_param
-    from pipe.pipe_control import PipeControl
+    from pipe import PipeParam, PipeControl
 
 We next initialise a parameter object. Here we have put the data from DACE in
-the ``DATADIR/Kelt-11/101/`` directory
+the ``data_root/Kelt-11/101/`` directory
 
 .. code-block:: python
 
-    pps = pipe_param.PipeParam('Kelt-11', '101')
+    pps = PipeParam('Kelt-11', '101')
 
 Next we set the sub-array range to extract a light curve for only a fraction
 of the full observation. This is mostly used for testing with shorter execution

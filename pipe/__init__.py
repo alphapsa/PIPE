@@ -27,3 +27,5 @@ from .reduce import (
     pix_mat, make_maskcube, rough_contrast, check_low, check_val, check_pos,
     check_motion, check_mask
 )
+from .pipe_control import PipeControl
+from .pipe_param import PipeParam
