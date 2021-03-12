@@ -11,11 +11,11 @@ Worker functions for multi_psf. Fit known PSFs to data.
 import numpy as np
 from numpy.linalg import lstsq
 from scipy.optimize import nnls
-from pipe.reduce import coo_mat
+from .reduce import coo_mat
 from .spline_pca import psf_integral
 
 def fit(psf_list, frame, noise, mask, xc, yc, 
-                radius=50, krn_scl=0.3,
+                fitrad=50, krn_scl=0.3,
                 krn_rad=3, bg_fit=0):
     """Fit multiple PSF PCs simultaneousy to single frame. Fits
     for motion blur.
@@ -30,7 +30,7 @@ def fit(psf_list, frame, noise, mask, xc, yc,
     xcoo =  np.arange(frame.shape[0]) - xc
     ycoo =  np.arange(frame.shape[1]) - yc
 
-    aperture = xmat**2 + ymat**2 <= radius**2
+    aperture = xmat**2 + ymat**2 <= fitrad**2
     aperture *= mask
     fvec = frame[aperture]
     nvec = noise[aperture]

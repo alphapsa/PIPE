@@ -65,7 +65,7 @@ def fit(psf_list, data_cube, noise_cube, mask, xc, yc,
 
 def fit_binary(psf_list0, psf_list1, data_cube, noise_cube, mask, xc0, yc0,
                           xc1, yc1, psfrad=70, fitrad=30, krn_scl=0.3,
-                          krn_rad=3, nthreads=16):
+                          krn_rad=3, nthreads=16, fix_flux2=None):
     """Fit two PSFs independently to both components of a binary, 
     in a similar way as the regular multi_psf.fit function 
     described above.
@@ -97,7 +97,7 @@ def fit_binary(psf_list0, psf_list1, data_cube, noise_cube, mask, xc0, yc0,
         noise = noise_cube[n]
         
         inparam.append((psf_list0, psf_list1, frame, noise, mask0, xc0[n], yc0[n], xc1[n], yc1[n], 
-                psfrad, fitrad, krn_scl, krn_rad))
+                psfrad, fitrad, krn_scl, krn_rad, fix_flux2))
     
     with mp.Pool(nthreads0) as p:
         outparam = p.starmap(psf_fit_binary, inparam)
