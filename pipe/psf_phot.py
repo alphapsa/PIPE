@@ -594,7 +594,7 @@ class PsfPhot:
         
         
         self.sa_apt = (np.max(self.sa_debias, axis=0) > 0)
-        sa_cor, sa_mjd, sa_hdr, sa_tab = \
+        sa_cor, _sa_mjd, _sa_hdr, _sa_tab = \
             datacube(self.pps.file_sa_cor, self.pps.sa_range)
 
         self.sa_bg = np.median(self.sa_debias[:, self.sa_apt] - 
@@ -1014,7 +1014,7 @@ class PsfPhot:
         """
         sel = self.sa_cent_sel        
         self.mess('Compute PSF centers [sa]... (multi {:d} threads)'.format(self.pps.nthreads))
-        xc, yc, sc = multi_cent_psf(self.psf,
+        xc, yc, _sc = multi_cent_psf(self.psf,
                                     self.sa_sub[sel] - self.sa_stat_res,
                                     self.sa_noise[sel],
                                     self.sa_xc[sel], self.sa_yc[sel],
@@ -1034,7 +1034,7 @@ class PsfPhot:
         """
         sel = self.im_cent_sel
         self.mess('Compute PSF centers [im]... (multi {:d} threads)'.format(self.pps.nthreads))
-        xc, yc, sc = multi_cent_psf(self.psf,
+        xc, yc, _sc = multi_cent_psf(self.psf,
                                     self.im_sub[sel] - self.im_stat_res, 
                                     self.im_noise[sel],
                                     self.im_xc[sel], self.im_yc[sel],
@@ -1309,7 +1309,7 @@ class PsfPhot:
         """
         self.mess('Finding frames with high chi2...')
         ind = np.ones(len(chi2), dtype='?')
-        for n in range(niter):
+        for _n in range(niter):
             ind = chi2 < (np.median(chi2[ind])+clip*np.std(chi2[ind]))
         return ind
     
@@ -1655,7 +1655,7 @@ class PsfPhot:
         norm1 = self.pps.init_flux_ratio*self.sa_norm1
         
         self.mess('Compute subarray PSF centers... (multi {:d} threads)'.format(self.pps.nthreads))
-        sa_xc0, sa_yc0, sc0, sa_xc1, sa_yc1, sc1 = (
+        sa_xc0, sa_yc0, _sc0, sa_xc1, sa_yc1, _sc1 = (
                 multi_cent_binary_psf(psf,
                                       self.sa_sub, self.sa_noise,
                                       self.sa_xc, self.sa_yc,
@@ -1675,7 +1675,7 @@ class PsfPhot:
         dx, dy = rotate_position(self.binary_x1, self.binary_y1, self.sa_att[:,3])
         
         self.mess('Compute subarray PSF centers... (multi {:d} threads)'.format(self.pps.nthreads))
-        self.sa_xc0, self.sa_yc0, sc0, self.sa_xc1, self.sa_yc1, sc1 = (
+        self.sa_xc0, self.sa_yc0, _sc0, self.sa_xc1, self.sa_yc1, _sc1 = (
                 multi_cent_binary_psf_fix(psf,
                                           self.sa_sub, self.sa_noise,
                                           self.sa_xc, self.sa_yc, 

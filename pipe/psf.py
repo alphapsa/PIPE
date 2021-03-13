@@ -230,7 +230,7 @@ def fit_binary(psf_list0, psf_list1, frame, noise, mask, xc0, yc0, xc1, yc1,
         # Subtract primary and fit secondary. Note: this will not necessarily 
         # result in the same flux for secondary as previously fixed.
         fit_frame = frame - psf0 - bg
-        psf1, bg_tmp, kmat1, sc1, w1 = fit(psf_list1, fit_frame, noise, mask, xc1, yc1, 
+        psf1, _bg_tmp, kmat1, sc1, w1 = fit(psf_list1, fit_frame, noise, mask, xc1, yc1, 
                 fitrad=fitrad, krn_scl=krn_scl, krn_rad=krn_rad, bg_fit=-1)
         psf1 *= apt1
 

@@ -55,7 +55,7 @@ def psf(psf_spline, frame, noise, xc, yc,
         return np.sum((frame_pix-scale*psf_pix)**2/noise_pix2)
 
     init_param = np.array([0, 0, norm])
-    for n in range(c_iter):
+    for _n in range(c_iter):
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
             res = minimize(chi, init_param)
@@ -101,7 +101,7 @@ def binary_psf(psf_spline, frame, noise, xc0, yc0, xc1, yc1,
         return np.sum(np.abs(frame_pix-psf_pix)**2/noise_pix**2)
 
     init_param = np.array([0, 0, norm0, 0, 0, norm1])
-    for n in range(c_iter):
+    for _n in range(c_iter):
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
             res = minimize(chi, init_param)
@@ -150,7 +150,7 @@ def binary_psf_fix(psf_spline, frame, noise, xc0, yc0, dx, dy,
         return np.sum(np.abs(frame_pix-psf_pix)**2/noise_pix**2)
 
     init_param = np.array([0, 0, norm0, norm1])
-    for n in range(c_iter):
+    for _n in range(c_iter):
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
             res = minimize(chi, init_param)
