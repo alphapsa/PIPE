@@ -42,7 +42,7 @@ class PipeParam:
         
         self.file_log = os.path.join(outdir, 'logfile.txt')
         if calibpath is None:
-            self.calibpath = conf.ref_lib_path  # Directory where calibration files are located
+            self.calibpath = conf.ref_lib_data  # Directory where calibration files are located
         else:
             self.calibpath = calibpath
         self.define_filenames()  # Find relevant filenames in data paths

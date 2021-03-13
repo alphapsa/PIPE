@@ -147,3 +147,4 @@ data_root/*
 ref_lib_data/*
 docs/api/*
 pipe/version.py
+pipe/config/conf.json
