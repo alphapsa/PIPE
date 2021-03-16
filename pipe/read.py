@@ -253,7 +253,7 @@ def imagette_offset(filename, frame_range=None):
     # raise Exception('[imagette_offset] Error: {:s} not found'.format(filename))
 
 
-def save_eigen_fits(filename, t, bjd, sc, err, bg, roll, xc, yc, flag, chi2,
+def save_eigen_fits(filename, t, bjd, sc, err, bg, roll, xc, yc, flag,
                     w, thermFront_2, header):
     """Save lightcurve data as defined by arguments to fits table in binary
     format. Coefficients for the principle components of the PSF eigen
@@ -267,7 +267,6 @@ def save_eigen_fits(filename, t, bjd, sc, err, bg, roll, xc, yc, flag, chi2,
     c.append(
         fits.Column(name='FLUXERR', format='D', unit='electrons', array=err))
     c.append(fits.Column(name='BG', format='D', unit='electrons/pix', array=bg))
-    c.append(fits.Column(name='CHI2', format='D', array=chi2))
     c.append(fits.Column(name='ROLL', format='D', unit='deg', array=roll))
     c.append(fits.Column(name='XC', format='D', unit='pix', array=xc))
     c.append(fits.Column(name='YC', format='D', unit='pix', array=yc))
@@ -280,7 +279,7 @@ def save_eigen_fits(filename, t, bjd, sc, err, bg, roll, xc, yc, flag, chi2,
 
 
 def save_binary_eigen_fits(filename, t, bjd, sc0, sc1, bg, roll,
-                           xc0, yc0, xc1, yc1, flag, chi2,
+                           xc0, yc0, xc1, yc1, flag,
                            w0, w1, thermFront_2, header):
     """Save lightcurve data from both componentes of a binary, as defined
     by arguments to fits table in binary format. Coefficients for the
@@ -294,7 +293,6 @@ def save_binary_eigen_fits(filename, t, bjd, sc0, sc1, bg, roll,
     c.append(fits.Column(name='FLUX0', format='D', unit='electrons', array=sc0))
     c.append(fits.Column(name='FLUX1', format='D', unit='electrons', array=sc1))
     c.append(fits.Column(name='BG', format='D', unit='electrons/pix', array=bg))
-    c.append(fits.Column(name='CHI2', format='D', array=chi2))
     c.append(fits.Column(name='ROLL', format='D', unit='deg', array=roll))
     c.append(fits.Column(name='XC0', format='D', unit='pix', array=xc0))
     c.append(fits.Column(name='YC0', format='D', unit='pix', array=yc0))

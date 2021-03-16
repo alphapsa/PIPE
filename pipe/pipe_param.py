@@ -76,14 +76,18 @@ class PipeParam:
         self.flatfield = True    # True if flat field correction should be applied
         self.darksub = True      # True if dark current is to be subtracted (from
                                  # Dark folder in calibpath)
+        self.dark_level = 2.0    # [e-/second] Only correct for dark current pixels
+                                 # above this level (to avoid low-level influence from
+                                 # residual stars in dark) 
         self.non_lin = True      # Apply non-linear correction to imagettes if True
         self.non_lin_tweak = False # Apply empirical tweak to non-linear correction
                                    # at low exposure levels, for both subarrays
                                    # and imagettes
+        self.empiric_noise = False # Use noise estimated from PSF residuals in time
+                                   # series rather than assuming photon statistics
         # Binary parameters
         self.secondary = 1       # Entry of secondary in starcat (primary is
                                  # always entry 0)
-        self.fitrad = 30         # Use this radius for fitting PSF
         self.psflib0 = None      # Binaries can have separate PSF libraries
         self.psflib1 = None      # defined for the two components
         self.init_flux_ratio = None  # Initial flux ratio estimate between 
@@ -91,19 +95,22 @@ class PipeParam:
                                      # ratio will be read from starcat
         self.fix_flux2 = True        # Fix the flux of the secondary in a
                                      # second iteration to improve stability
-        self.save_maskcube = True    # Save mask used to fitler out bad
+        self.save_mask_cube = True   # Save mask used to fitler out bad
                                      # data (as fits file)
         self.save_resid_cube = True  # Save cube of residuals (as fits file)
         self.save_static = False     # Save derived static image as fits file
         self.save_psfmodel = False   # Save fitted model of PSF cube
         self.save_motion_mat = False # Save fitted motion blur matrix
+        self.save_noise_cubes = False # Save estimated noise (raw/PSF/empiric) as fits cubes
         
         # Extraction parameters
         self.klip = 10           # Number of eigen components of PSF to use.
         self.sigma_clip = 15     # The residual/std-factor for masking
         self.sigma_clip_niter = 2    # Number of iterations used for sigma-clipping
+        self.empiric_noise = False   # Use noise determined by statistics on residuals
+        self.empiric_sigma_clip = 5  # The sigma-clipping to use when using empiric noise
         self.block_psf_level = 1e-4  # The level above which the PSF is blocked when
-                                 # doing vertical smear correction
+                                     # doing vertical smear correction
         self.centfit = 23        # Fit PSF inside this radius for centroid
         self.fluxfit = 40        # Fit PSF inside this radius for flux
         self.motion_step = 0.3   # Step in fitting for motion blur
@@ -116,8 +123,9 @@ class PipeParam:
                                      # smearing correction.
         
         self.sa_psfrad = 50      # Radius of area to subtract PSF in subarrays
+        self.fitrad = 30         # Use this radius for fitting PSF
         self.im_psfrad = 23      # Radius of area where most of the PSF flux is
-                                 # used for fitting and rough aperture photometry                                 
+                                 # Used for fitting and rough aperture photometry                                 
 
                                  
     def str_list(self):
