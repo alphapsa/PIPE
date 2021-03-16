@@ -17,13 +17,12 @@ from .cent import (
 
 
 def psf(psf_spline, cube, noise_cube, xc, yc,
-                    mask=None, radius=25, norm=1, nthreads=16):
+                    mask=None, radius=30, norm=1, nthreads=16):
     """Use a PSF to find the best matching centres in a cube.
     Uses noise cube to clip bad pixels.
     """
     xcoos = np.zeros(len(cube))
     ycoos = xcoos.copy()
-    scale = xcoos.copy()
 
     inparam = []
 
@@ -48,8 +47,7 @@ def psf(psf_spline, cube, noise_cube, xc, yc,
         res = outparam[m]
         xcoos[m] = res[0] + xc[m]
         ycoos[m] = res[1] + yc[m]
-        scale[m] = res[2]
-    return xcoos, ycoos, scale
+    return xcoos, ycoos
 
 
 def binary_psf(psf_spline, cube, noise_cube, xc0, yc0, xc1, yc1,

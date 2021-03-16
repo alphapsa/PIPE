@@ -42,7 +42,7 @@ from .reduce import (
     resample_attitude, resample_imagette_time, aperture, integrate_psf,
     interp_cube_ext, cube_apt, clean_cube2D, interp_cube, noise, psf_noise,
     pix_mat, make_maskcube, rough_contrast, check_low, check_val, check_pos,
-    check_motion, check_mask
+    check_motion, check_mask, empiric_noise
 )
 
 
@@ -295,7 +295,7 @@ class PsfPhot:
             self.make_star_bg_cube_im(skip=skip_bg_stars)
             self.update_smearing_im()
             self.update_sub_im()
-            self.psf_cent_im()            
+            self.psf_cent_im()
             self.make_star_bg_cube_im(skip=skip_bg_stars)
             self.update_sub_im()
 
@@ -344,19 +344,18 @@ class PsfPhot:
         else:
             iter_bg = False
 
-        sa_psfapt = aperture(self.sa_debias[0].shape, self.pps.sa_psfrad)
-
         for n in range(niter):
             self.mess('--- Iteration sa {:d}/{:d}'.format(n+1, niter))
             psf_cube0, scale0, bg0, w0 = multi_psf_fit(
                             self.eigen_psf[:klip],
                             self.sa_sub[sel] - self.sa_stat_res,
                             self.sa_noise[sel],
-                            self.sa_mask_cube[sel] * sa_psfapt,
+                            self.sa_mask_cube[sel],
                             self.sa_xc[sel], self.sa_yc[sel],
+                            fitrad=self.pps.fitrad,
+                            defrad=self.pps.psf_rad,
                             bg_fit=self.pps.bg_fit,
                             nthreads=self.pps.nthreads)
-            psf_cube0 *= self.sa_apt
             # Interpolate over frames without source
             t0 = self.sa_att[sel, 0]
             t = self.sa_att[:, 0]        
@@ -364,20 +363,23 @@ class PsfPhot:
             w = interp_cube_ext(t, t0, w0)
             scale = np.interp(t, t0, scale0)
             bg = np.interp(t, t0, bg0)
-
-            self.make_mask_cube_sa(psf_cube, radius=self.pps.sa_psfrad, clip=self.pps.sigma_clip)
+            self.mess('Iter {:d} MAD sa: {:.2f} ppm'.format(n+1, mad(scale0)))
+            self.make_mask_cube_sa(psf_cube, bg)
             self.sa_mask_cube[sel==0] = self.sa_mask
-            res = self.sa_sub - psf_cube*sa_psfapt - bg[:,None,None]
+            res = self.sa_sub - psf_cube - bg[:,None,None]
             if self.pps.remove_static:
                 apts = cube_apt(res.shape, self.pps.psf_rad - 1, self.sa_xc, self.sa_yc)
                 nanres = res.copy()
                 nanres[apts==0] = np.nan
                 nanres[0,:,:] = 0   # Ensures not all values are nan
                 self.sa_stat_res = np.nanmedian(nanres, axis=0)
+                self.sa_stat_res *= (self.sa_stat_res > self.pps.dark_level *
+                                     self.sa_hdr['TEXPTIME'])
+                res -= self.sa_stat_res
             self.remove_resid_smear_sa(res, psf_cube)
 
             if iter_bg:
-                bgfact = self.iter_background(self.sa_sub - psf_cube*sa_psfapt,
+                bgfact = self.iter_background(self.sa_sub - psf_cube,
                                               self.sa_bgstars)
                 self.sa_bgstars *= np.nanmedian(bgfact)
                 self.mess('Background factor: {:.3f} [sa]'.format(np.nanmedian(bgfact)))
@@ -389,25 +391,32 @@ class PsfPhot:
                 np.abs(self.sa_stat_res) + np.abs(self.sa_dark))**2 +
                 self.sa_dark_err**2)**.5
 
-        apt = aperture(self.sa_sub[0].shape, self.pps.sa_psfrad)
-        flux, err = self.psf_phot_sa(psf_cube*apt, bg, self.pps.im_psfrad-2)
-        self.save_residuals_sa('', psf_cube*apt, bg)
-        
-        chi2 = self.chi2_sa(psf_cube+bg[:,None,None])
+        flux, err = self.psf_phot_sa(psf_cube, bg, self.pps.im_psfrad-2)
+        if self.pps.save_resid_cube:
+            self.save_residuals_sa('', psf_cube, bg)
         
         flagCenter = (self.filter_pos(self.sa_xc, self.sa_yc) == 0)
         flagBadPix = (self.filter_bad_masks(self.sa_mask_cube, self.sa_apt) == 0)
         flagFlux = (self.filter_flux(scale) == 0)
         flagSource = (sel == 0)
-        flagChi2 = chi2 > (np.median(chi2)+3*np.std(chi2))
         flagBG = (self.filter_high_bg(bg + self.sa_bg, sel=(flagFlux==0)) == 0)
         flag = np.zeros(flagCenter.shape, dtype='int8')
         flag[:] = (1*flagCenter + 2*flagBadPix + 4*flagFlux +
-                    8*flagSource + 16*flagChi2 + 32*flagBG)
+                    8*flagSource + 16*flagBG)
         self.save_eigen_sa(flag, scale, scale*err,
-                           bg + self.sa_bg, chi2, w)
-        self.save_cube_fits('mask_cube_sa.fits', 
-                            np.array(self.sa_mask_cube, dtype='uint8'))
+                           bg + self.sa_bg, w)
+        if self.pps.save_mask_cube:
+            self.save_cube_fits('mask_cube_sa.fits', 
+                                np.array(self.sa_mask_cube, dtype='uint8'))
+        if self.pps.save_psfmodel:
+            self.save_cube_fits('psf_model_sa.fits', psf_cube)
+
+        if self.pps.save_noise_cubes:
+            self.save_cube_fits('psf_noise_sa.fits', self.sa_noise)
+            self.save_cube_fits('raw_noise_sa.fits', self.sa_raw_noise)
+            res = self.compute_residuals_sa(psf_cube, bg)
+            emp_noise_cube = empiric_noise(res, self.sa_xc, self.sa_yc, bg + self.sa_bg)
+            self.save_cube_fits('empiric_noise_sa.fits', emp_noise_cube)
 
         self.mad_sa = mad(scale)
         self.mess('MAD sa: {:.2f} ppm'.format(self.mad_sa))
@@ -455,9 +464,12 @@ class PsfPhot:
                             self.im_noise[sel],
                             self.im_mask_cube[sel],
                             self.im_xc[sel], self.im_yc[sel],
+                            fitrad=self.pps.fitrad,
+                            defrad=self.pps.psf_rad,
                             bg_fit=self.pps.bg_fit,
                             nthreads=self.pps.nthreads)
             psf_cube0 *= self.im_apt
+
             # Interpolate over frames without source
             t0 = self.im_att[sel, 0]
             t = self.im_att[:, 0]
@@ -465,12 +477,19 @@ class PsfPhot:
             w = interp_cube_ext(t, t0, w0)
             scale = np.interp(t, t0, scale0)
             bg = np.interp(t, t0, bg0)
-            
-            self.make_mask_cube_im(psf_cube, clip=self.pps.sigma_clip)
+            self.mess('Iter {:d} MAD im: {:.2f} ppm'.format(n+1, mad(scale0)))
+            self.make_mask_cube_im(psf_cube, bg)
             self.im_mask_cube[sel==0] = self.im_mask
             res = self.im_sub - psf_cube - bg[:,None,None]
             if self.pps.remove_static:
-                self.im_stat_res = np.nanmedian(res, axis=0)
+                apts = cube_apt(res.shape, self.pps.psf_rad - 1, self.im_xc, self.im_yc)
+                nanres = res.copy()
+                nanres[apts==0] = np.nan
+                nanres[0,:,:] = 0   # Ensures not all values are nan
+                self.im_stat_res = np.nanmedian(nanres, axis=0)
+                self.im_stat_res *= (self.im_stat_res > self.pps.dark_level *
+                                     self.im_hdr['EXPTIME'] * self.im_hdr['NEXP'])
+                res -= self.im_stat_res
             self.remove_resid_smear_im(res, psf_cube)
             if iter_bg:
                 bgfact = self.iter_background(self.im_sub - psf_cube, self.im_bgstars)
@@ -485,23 +504,30 @@ class PsfPhot:
 
         flux, err = self.psf_phot_im(psf_cube, bg, self.pps.im_psfrad-2)
 
-        self.save_residuals_im('', psf_cube, bg)
-        
-        chi2 = self.chi2_im(psf_cube+bg[:,None,None])
+        if self.pps.save_resid_cube:
+            self.save_residuals_im('', psf_cube, bg)
         
         flagCenter = (self.filter_pos(self.im_xc, self.im_yc) == 0)
         flagBadPix = (self.filter_bad_masks(self.im_mask_cube, self.im_apt) == 0)
         flagFlux = (self.filter_flux(scale) == 0)
-        flagChi2 = (self.filter_chi2(chi2) == 0)
         flagBG = (self.filter_high_bg(bg + self.im_bg, sel=(flagFlux==0)) == 0)
         flagSource = (sel == 0)
         flag = np.zeros(flagCenter.shape, dtype='int8')
         flag[:] = (1*flagCenter + 2*flagBadPix + 4*flagFlux +
-                    8*flagSource + 16*flagChi2 + 32*flagBG)
-        self.save_eigen_im(flag, scale, scale*err, 
-                           bg + self.im_bg, chi2, w)
-        self.save_cube_fits('mask_cube_im.fits',
-                            np.array(self.im_mask_cube, dtype='uint8'))
+                    8*flagSource + 16*flagBG)
+        self.save_eigen_im(flag, scale, scale*err, bg + self.im_bg, w)
+        if self.pps.save_mask_cube:
+            self.save_cube_fits('mask_cube_im.fits',
+                                np.array(self.im_mask_cube, dtype='uint8'))
+        if self.pps.save_psfmodel:
+            self.save_cube_fits('psf_model_im.fits', psf_cube)
+
+        if self.pps.save_noise_cubes:
+            self.save_cube_fits('psf_noise_im.fits', self.im_noise)
+            self.save_cube_fits('raw_noise_im.fits', self.im_raw_noise)
+            res = self.compute_residuals_im(psf_cube, bg)
+            emp_noise_cube = empiric_noise(res, self.im_xc, self.im_yc, bg + self.im_bg)
+            self.save_cube_fits('empiric_noise_im.fits', emp_noise_cube)
 
         self.mad_im = mad(scale)
         self.mess('MAD im: {:.2f} ppm'.format(self.mad_im))
@@ -578,7 +604,6 @@ class PsfPhot:
             # Interpolate centers for frames without source
             self.im_xc = np.interp(self.im_att[:,0], self.im_att[sel,0], xc)
             self.im_yc = np.interp(self.im_att[:,0], self.im_att[sel,0], yc)
- 
 
     def read_sa_datacube(self):
         """Reads the de-biased, flat-fielded, and non-linearity corrected
@@ -634,7 +659,7 @@ class PsfPhot:
         """
         self.mess('Load mask...')
         mask = read_mask(self.pps.file_mask)
-        self.sa_mask = self.sa_apt
+        self.sa_mask = self.sa_apt.copy()
         if self.pps.mask_badpix:
             self.sa_mask *= (mask==0)
             
@@ -668,15 +693,18 @@ class PsfPhot:
                                    self.sa_hdr['V_STRT_M'],
                                    (self.sa_hdr['X_WINOFF'], self.sa_hdr['Y_WINOFF']),
                                    self.sa_debias.shape[1:])
+        clean_mask = dark > self.pps.dark_level
+        dark *= clean_mask
+        dark_err *= clean_mask
         self.sa_dark = dark * self.sa_hdr['TEXPTIME'] * self.sa_apt
         self.sa_dark_err = dark_err * self.sa_hdr['TEXPTIME'] * self.sa_apt
         if self.pps.file_im is not None:
             i0, i1, j0, j1 = sub_image_indices(self.im_sa_off,
                                                     self.im_raw.shape[1:])
-            self.im_dark = (dark[j0:j1, i0:i1] * 
-                            self.im_hdr['TEXPTIME'] * self.im_apt)
-            self.im_dark_err = (dark_err[j0:j1, i0:i1] *
-                                self.im_hdr['TEXPTIME'] * self.im_apt)
+            self.im_dark = (dark[j0:j1, i0:i1] * self.im_hdr['NEXP'] *
+                            self.im_hdr['EXPTIME'] * self.im_apt)
+            self.im_dark_err = (dark_err[j0:j1, i0:i1] * self.im_hdr['NEXP'] *
+                                self.im_hdr['EXPTIME'] * self.im_apt)
 
 
     def read_attitude(self):
@@ -999,7 +1027,7 @@ class PsfPhot:
         centered in the frame (with defined radius)
         """
         if radius == None:
-            radius = self.pps.im_psfrad - 1
+            radius = self.pps.fitrad
         self.mess('Compute photo centers...')
         apt = aperture(data[0].shape, radius=radius)
         ixc, iyc = cent_flux(data*apt)
@@ -1014,13 +1042,13 @@ class PsfPhot:
         """
         sel = self.sa_cent_sel        
         self.mess('Compute PSF centers [sa]... (multi {:d} threads)'.format(self.pps.nthreads))
-        xc, yc, _sc = multi_cent_psf(self.psf,
-                                    self.sa_sub[sel] - self.sa_stat_res,
-                                    self.sa_noise[sel],
-                                    self.sa_xc[sel], self.sa_yc[sel],
-                                    mask=self.sa_mask, radius=self.pps.im_psfrad-3,
-                                    norm=self.sa_norm,
-                                    nthreads=self.pps.nthreads)
+        xc, yc = multi_cent_psf(self.psf,
+                                self.sa_sub[sel] - self.sa_stat_res,
+                                self.sa_noise[sel],
+                                self.sa_xc[sel], self.sa_yc[sel],
+                                mask=self.sa_mask, radius=self.pps.fitrad,
+                                norm=self.sa_norm,
+                                nthreads=self.pps.nthreads)
         self.sa_xc = np.interp(self.sa_att[:, 0], self.sa_att[sel, 0], xc)
         self.sa_yc = np.interp(self.sa_att[:, 0], self.sa_att[sel, 0], yc)
         ind = sigma_clip(xc) * sigma_clip(yc)
@@ -1034,13 +1062,13 @@ class PsfPhot:
         """
         sel = self.im_cent_sel
         self.mess('Compute PSF centers [im]... (multi {:d} threads)'.format(self.pps.nthreads))
-        xc, yc, _sc = multi_cent_psf(self.psf,
-                                    self.im_sub[sel] - self.im_stat_res, 
-                                    self.im_noise[sel],
-                                    self.im_xc[sel], self.im_yc[sel],
-                                    mask=self.im_mask, radius=self.pps.im_psfrad-3,
-                                    norm=self.im_norm,
-                                    nthreads=self.pps.nthreads)
+        xc, yc = multi_cent_psf(self.psf,
+                                self.im_sub[sel] - self.im_stat_res, 
+                                self.im_noise[sel],
+                                self.im_xc[sel], self.im_yc[sel],
+                                mask=self.im_mask, radius=self.pps.fitrad,
+                                norm=self.im_norm,
+                                nthreads=self.pps.nthreads)
         self.im_xc = np.interp(self.im_att[:,0], self.im_att[sel, 0], xc)
         self.im_yc = np.interp(self.im_att[:,0], self.im_att[sel, 0], yc)
         ind = sigma_clip(xc) * sigma_clip(yc)
@@ -1166,7 +1194,7 @@ class PsfPhot:
         return apt
 
 
-    def make_mask_cube_sa(self, model_cube, radius=None, clip=5):
+    def make_mask_cube_sa(self, psf_cube, bg):
         """Use a model of how the data should look like, the expected
         noise, and sigma-clipping to mask too deviating pixels 
         (e.g. cosmic rays). Only look for bad pixels inside radius.
@@ -1175,11 +1203,20 @@ class PsfPhot:
             self.mess('No mask cube [im].', level=2)
             return
         self.mess('Make mask cube [sa]...')
-        self.sa_mask_cube = make_maskcube(self.sa_sub, self.sa_noise, model_cube,
-                                                 mask=self.sa_mask, radius=radius, clip=clip)
+        if self.pps.empiric_noise:
+            self.mess('Using empiric noise for mask cube [sa]...')
+            res = self.compute_residuals_sa(psf_cube, bg)
+            noise_cube = empiric_noise(res, self.sa_xc, self.sa_yc, bg + self.sa_bg)
+            clip = self.pps.empiric_sigma_clip
+        else:
+            noise_cube = self.sa_noise
+            clip = self.pps.sigma_clip
+
+        self.sa_mask_cube = make_maskcube(self.sa_sub, noise_cube, psf_cube + bg[:,None,None],
+                                                 mask=self.sa_mask, clip=clip)
 
 
-    def make_mask_cube_im(self, model_cube, radius=None, clip=5):
+    def make_mask_cube_im(self, psf_cube, bg):
         """Use a model of how the data should look like, the expected
         noise, and sigma-clipping to mask too deviating pixels 
         (e.g. cosmic rays). Only look for bad pixels inside radius.
@@ -1188,8 +1225,16 @@ class PsfPhot:
             self.mess('No mask cube [im].', level=2)
             return
         self.mess('Make mask cube [im]...')
-        self.im_mask_cube = make_maskcube(self.im_sub, self.im_noise, model_cube,
-                                                 mask=self.im_mask, radius=radius, clip=clip)
+        if self.pps.empiric_noise:
+            self.mess('Using empiric noise for mask cube [im]...')
+            res = self.compute_residuals_im(psf_cube, bg)
+            noise_cube = empiric_noise(res, self.im_xc, self.im_yc, bg + self.im_bg)
+            clip = self.pps.empiric_sigma_clip
+        else:
+            noise_cube = self.im_noise
+            clip = self.pps.sigma_clip
+        self.im_mask_cube = make_maskcube(self.im_sub, noise_cube, psf_cube + bg[:,None,None],
+                                                 mask=self.im_mask, clip=clip)
 
 
     def make_star_bg_cube_sa(self, skip=[0]):
@@ -1303,17 +1348,6 @@ class PsfPhot:
         return ret_sel
     
     
-    def filter_chi2(self, chi2, clip=3, niter=5):
-        """Returns binary index to array with values less than the median
-        + clip*std. Used to check how good the PSF fit is to data.
-        """
-        self.mess('Finding frames with high chi2...')
-        ind = np.ones(len(chi2), dtype='?')
-        for _n in range(niter):
-            ind = chi2 < (np.median(chi2[ind])+clip*np.std(chi2[ind]))
-        return ind
-    
-    
     def sa2im_crop(self, data):
         """Crop out the imagette region from a subarray. Works for
         both frames and cubes.
@@ -1358,7 +1392,7 @@ class PsfPhot:
         return temp
     
 
-    def save_eigen_sa(self, flag, flux, err, bg, chi2, w):
+    def save_eigen_sa(self, flag, flux, err, bg, w):
         """Save results from the photometric extraction into a 
         fits file located in the output directory.
         """
@@ -1373,13 +1407,12 @@ class PsfPhot:
                           self.sa_xc,
                           self.sa_yc,
                           flag,
-                          chi2,
                           w,
                           self.sa_thermFront_2,
                           self.sa_hdr)
 
 
-    def save_eigen_im(self, flag, flux, err, bg, chi2, w):
+    def save_eigen_im(self, flag, flux, err, bg, w):
         """Save results from the photometric extraction into a 
         fits file located in the output directory.
         """
@@ -1394,7 +1427,6 @@ class PsfPhot:
                           self.im_xc,
                           self.im_yc,
                           flag,
-                          chi2,
                           w,
                           self.im_thermFront_2,
                           self.im_hdr)
@@ -1413,14 +1445,33 @@ class PsfPhot:
         pickle.dump(psf_fun, open(filename, 'wb'))        
 
 
-    def save_residuals_sa(self, prefix, psf_cube, bg):
-        """Subtract model from data and save as a fits cube
-        in the output directory.
+    def compute_residuals_sa(self, psf_cube, bg):
+        """Subtract model from data and return cube
+        of residuals
         """
         model = psf_cube + bg[:,None,None]
         res = self.sa_sub - model
         if self.pps.remove_static:
             res -= self.sa_stat_res
+        return res
+
+
+    def compute_residuals_im(self, psf_cube, bg):
+        """Subtract model from data and return cube
+        of residuals
+        """
+        model = psf_cube + bg[:,None,None]
+        res = self.im_sub - model
+        if self.pps.remove_static:
+            res -= self.im_stat_res
+        return res
+
+
+    def save_residuals_sa(self, prefix, psf_cube, bg):
+        """Subtract model from data and save as a fits cube
+        in the output directory.
+        """
+        res = self.compute_residuals_sa(psf_cube=psf_cube, bg=bg)
         self.save_cube_fits(prefix+'residuals_sa.fits', res)
 
 
@@ -1428,10 +1479,7 @@ class PsfPhot:
         """Subtract model from data and save as a fits cube
         in the output directory.
         """
-        model = psf_cube + bg[:,None,None]
-        res = self.im_sub - model
-        if self.pps.remove_static:
-            res -= self.im_stat_res
+        res = self.compute_residuals_im(psf_cube=psf_cube, bg=bg)
         self.save_cube_fits(prefix+'residuals_im.fits', res)    
 
     #----------- Methods for binary extractions below
@@ -1535,8 +1583,7 @@ class PsfPhot:
             self.mess('Iter {:d} MAD sa0: {:.2f} ppm'.format(n+1, mad(scale00)))
             self.mess('Iter {:d} MAD sa1: {:.2f} ppm'.format(n+1, mad(scale10)))
             bg = np.interp(t, t0, bg0)
-            self.make_mask_cube_sa(psf_cube0+psf_cube1, radius=self.pps.sa_psfrad,
-                                   clip=self.pps.sigma_clip)
+            self.make_mask_cube_sa(psf_cube0+psf_cube1, bg)
             self.sa_mask_cube[sel==0] = self.sa_mask
             res = self.sa_sub - (psf_cube0+psf_cube1) - bg[:,None,None]
             if self.pps.remove_static:
@@ -1547,23 +1594,26 @@ class PsfPhot:
                 np.abs(self.sa_stat_res) + np.abs(self.sa_dark))**2 +
                 self.sa_dark_err**2)**.5
 
-        self.save_residuals_sa('binary_', (psf_cube0+psf_cube1), bg)
-        
-        chi2 = self.chi2_sa((psf_cube0+psf_cube1)+bg[:,None,None])
+        if self.pps.save_resid_cube:
+            self.save_residuals_sa('binary_', (psf_cube0+psf_cube1), bg)
         
         flagCenter = (self.filter_pos(self.sa_xc0, self.sa_yc0) == 0)
         flagBadPix = (self.filter_bad_masks(self.sa_mask_cube, self.sa_apt) == 0)
         flagFlux = (self.filter_flux(scale0 + scale1) == 0)
         flagSource = (sel == 0)
-        flagChi2 = chi2 > (np.median(chi2)+3*np.std(chi2))
         flagBG = (self.filter_high_bg(bg + self.sa_bg, sel=(flagFlux==0)) == 0)
         flag = np.zeros(flagCenter.shape, dtype='int8')
         flag[:] = (1*flagCenter + 2*flagBadPix + 4*flagFlux +
-                    8*flagSource + 16*flagChi2 + 32*flagBG)
+                    8*flagSource + 16*flagBG)
         self.save_binary_eigen_sa(flag, scale0, scale1,
-                           bg + self.sa_bg, chi2, w0, w1)
-        self.save_cube_fits('mask_cube_sa.fits', 
-                            np.array(self.sa_mask_cube, dtype='uint8'))
+                           bg + self.sa_bg, w0, w1)
+        if self.pps.save_mask_cube:
+            self.save_cube_fits('mask_cube_sa.fits', 
+                                np.array(self.sa_mask_cube, dtype='uint8'))
+        if self.pps.save_psfmodel:
+            self.save_cube_fits('psf_model0_sa.fits', psf_cube0)
+            self.save_cube_fits('psf_model1_sa.fits', psf_cube1)
+
         self.mess('MAD sa0: {:.2f} ppm'.format(mad(scale0)))
         self.mess('MAD sa0[flag==0]: {:.2f} ppm'.format(mad(scale0[flag==0])))
         self.mess('MAD sa1: {:.2f} ppm'.format(mad(scale1)))
@@ -1613,8 +1663,7 @@ class PsfPhot:
             self.mess('Iter {:d} MAD im0: {:.2f} ppm'.format(n+1, mad(scale00)))
             self.mess('Iter {:d} MAD im1: {:.2f} ppm'.format(n+1, mad(scale10)))
             bg = np.interp(t, t0, bg0)
-            self.make_mask_cube_im(psf_cube0+psf_cube1, radius=self.pps.im_psfrad,
-                                   clip=self.pps.sigma_clip)
+            self.make_mask_cube_im(psf_cube0+psf_cube1, bg)
             self.im_mask_cube[sel==0] = self.im_mask
             res = self.im_sub - (psf_cube0+psf_cube1) - bg[:,None,None]
             if self.pps.remove_static:
@@ -1624,23 +1673,25 @@ class PsfPhot:
                 np.abs(self.im_stat_res) + np.abs(self.im_dark))**2 +
                 self.im_dark_err**2)**.5
 
-        self.save_residuals_im('binary_', (psf_cube0+psf_cube1), bg)
-        
-        chi2 = self.chi2_im((psf_cube0+psf_cube1)+bg[:,None,None])
+        if self.pps.save_resid_cube:
+            self.save_residuals_im('binary_', (psf_cube0+psf_cube1), bg)
         
         flagCenter = (self.filter_pos(self.im_xc0, self.im_yc0) == 0)
         flagBadPix = (self.filter_bad_masks(self.im_mask_cube, self.im_apt) == 0)
         flagFlux = (self.filter_flux(scale0 + scale1) == 0)
         flagSource = (sel == 0)
-        flagChi2 = chi2 > (np.median(chi2)+3*np.std(chi2))
         flagBG = (self.filter_high_bg(bg + self.im_bg, sel=(flagFlux==0)) == 0)
         flag = np.zeros(flagCenter.shape, dtype='int8')
         flag[:] = (1*flagCenter + 2*flagBadPix + 4*flagFlux +
-                    8*flagSource + 16*flagChi2 + 32*flagBG)
+                    8*flagSource + 16*flagBG)
         self.save_binary_eigen_im(flag, scale0, scale1,
-                           bg + self.im_bg, chi2, w0, w1)
-        self.save_cube_fits('mask_cube_im.fits', 
-                            np.array(self.im_mask_cube, dtype='uint8'))
+                           bg + self.im_bg, w0, w1)
+        if self.pps.save_mask_cube:
+            self.save_cube_fits('mask_cube_im.fits', 
+                                np.array(self.im_mask_cube, dtype='uint8'))
+        if self.pps.save_psfmodel:
+            self.save_cube_fits('psf_model0_im.fits', psf_cube0)
+            self.save_cube_fits('psf_model1_im.fits', psf_cube1)
         self.mess('MAD im0: {:.2f} ppm'.format(mad(scale0)))
         self.mess('MAD im0[flag==0]: {:.2f} ppm'.format(mad(scale0[flag==0])))
         self.mess('MAD im1: {:.2f} ppm'.format(mad(scale1)))
@@ -1685,7 +1736,7 @@ class PsfPhot:
                                           nthreads=self.pps.nthreads))        
 
 
-    def save_binary_eigen_sa(self, flag, flux0, flux1, bg, chi2, w0, w1):
+    def save_binary_eigen_sa(self, flag, flux0, flux1, bg, w0, w1):
         """Save results from the photometric extraction of a binary into a 
         fits file located in the output directory.
         """
@@ -1702,14 +1753,13 @@ class PsfPhot:
                           self.sa_xc1,
                           self.sa_yc1,
                           flag,
-                          chi2,
                           w0,
                           w1,
                           self.sa_thermFront_2,
                           self.sa_hdr)
 
 
-    def save_binary_eigen_im(self, flag, flux0, flux1, bg, chi2, w0, w1):
+    def save_binary_eigen_im(self, flag, flux0, flux1, bg, w0, w1):
         """Save results from the photometric extraction of a binary into a 
         fits file located in the output directory.
         """
@@ -1726,7 +1776,6 @@ class PsfPhot:
                           self.im_xc1,
                           self.im_yc1,
                           flag,
-                          chi2,
                           w0,
                           w1,
                           self.im_thermFront_2,

@@ -154,7 +154,7 @@ def sigma_clip(data, clip=5, niter=5):
     a boolean array of indices to non-clipped data    
     """
     ind = np.ones(data.shape, dtype='?')
-    for n in range(niter):
+    for _n in range(niter):
         sigma = np.std(data[ind])
         m = np.median(data[ind])
         ind = np.abs(data-m) < clip*sigma
@@ -206,7 +206,8 @@ def load_drp(name, visit, desc='DEFAULT'):
     """Reads lightcurve extracted by the CHEOPS Data Reduction Pipeline.
     Returns DRP dict, if found.
     """
-    datapath = os.path.join(data_root, name, visit)
+    from .config import conf
+    datapath = os.path.join(conf.data_root, name, visit)
     def find_file(substring):
         for file in os.listdir(datapath):
             if substring in file:

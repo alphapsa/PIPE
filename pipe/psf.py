@@ -15,10 +15,11 @@ from .reduce import coo_mat
 from .spline_pca import psf_integral
 
 def fit(psf_list, frame, noise, mask, xc, yc, 
-                fitrad=50, krn_scl=0.3,
+                fitrad=50, defrad=70, krn_scl=0.3,
                 krn_rad=3, bg_fit=0):
     """Fit multiple PSF PCs simultaneousy to single frame. Fits
-    for motion blur.
+    for motion blur. fitrad is radius to fit PSF, defrad is radius
+    out to which PSF is defined.
     Returns: 
         Fitted PSF sampled on frame pixels
         Determined background (single value)
@@ -30,10 +31,11 @@ def fit(psf_list, frame, noise, mask, xc, yc,
     xcoo =  np.arange(frame.shape[0]) - xc
     ycoo =  np.arange(frame.shape[1]) - yc
 
-    aperture = xmat**2 + ymat**2 <= fitrad**2
-    aperture *= mask
-    fvec = frame[aperture]
-    nvec = noise[aperture]
+    apt = xmat**2 + ymat**2 <= fitrad**2
+    def_apt = xmat**2 + ymat**2 <= defrad**2
+    sel = apt*mask
+    fvec = frame[sel]
+    nvec = noise[sel]
     Npix = len(fvec)
     
     xkern = np.linspace(-krn_scl * krn_rad, krn_scl * krn_rad,
@@ -56,7 +58,7 @@ def fit(psf_list, frame, noise, mask, xc, yc,
 
     for n in range(Nk):
         psf = psf_list[0](ycoo-yk[n], xcoo-xk[n])
-        psfs[:,n] = psf[aperture]/nvec
+        psfs[:,n] = psf[sel]/nvec
 
     kvec = _least_square(psfs, fvec/nvec)
          
@@ -72,14 +74,15 @@ def fit(psf_list, frame, noise, mask, xc, yc,
         psf = np.zeros(frame.shape)
         for n in range(Nk):
             psf += kvec[n]*psf_list[m](ycoo-yk[n], xcoo-xk[n])
-        psfs[:,m] = psf[aperture]/nvec
+        psfs[:,m] = psf[sel]/nvec
                        
     w = _least_square(psfs, fvec/nvec)
  
-    psf = np.zeros(aperture.shape)
+    psf = np.zeros(sel.shape)
     for m in range(Npsf):
         for n in range(Nk):
             psf += w[m]*kvec[n]*psf_list[m](ycoo-yk[n], xcoo-xk[n]) 
+    psf *= def_apt
 
     if bg_fit==0:
         bg = w[-1]

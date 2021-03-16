@@ -14,7 +14,7 @@ from .psf import fit as psf_fit, fit_binary as psf_fit_binary
 
 
 def fit(psf_list, data_cube, noise_cube, mask, xc, yc,
-                fitrad=50, krn_scl=0.3,
+                fitrad=50, defrad=70, krn_scl=0.3,
                 krn_rad=3, bg_fit=0, nthreads=16):
     """Fit a defined PSF to a frame by constructing a matrix of
     offsets. Then produce a least-square fit of base functions
@@ -49,7 +49,7 @@ def fit(psf_list, data_cube, noise_cube, mask, xc, yc,
         noise = noise_cube[n]
         
         inparam.append((psf_list, frame, noise, mask0, xc[n], yc[n], 
-                fitrad, krn_scl, krn_rad, bg_fit))
+                fitrad, defrad, krn_scl, krn_rad, bg_fit))
     
     with mp.Pool(nthreads0) as p:
         outparam = p.starmap(psf_fit, inparam)

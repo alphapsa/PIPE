@@ -11,6 +11,7 @@ Collection of tools to manipulate CHEOPS data.
 import warnings
 import numpy as np
 from scipy import interpolate
+from scipy.ndimage import shift
 from .cent import flux as cent_flux
 
 
@@ -73,11 +74,12 @@ def interp_cube(t, t0, datacube0):
 def interp_cube_ext(t, t0, datacube0):
     """Resample planes from datacube, with extrapolation
     """
-    ifun = interpolate.interp1d(t0, datacube0, axis=0,
-                                copy=False,
+    tm = np.nanmedian(t)
+    ifun = interpolate.interp1d(t0/tm, datacube0, axis=0,
+                                copy=True,
                                 fill_value='extrapolate',
                                 assume_sorted=True)
-    return ifun(t)
+    return ifun(t/tm)
 
 
 def coo_mat(shape, xc=0, yc=0):
@@ -133,7 +135,7 @@ def replace_nan(data, max_iter = 50):
     for n in range(data.ndim):
         shift.append(tuple(np.roll(-shift0, n)))
         shift.append(tuple(np.roll(shift0, n)))
-    for j in range(max_iter):
+    for _j in range(max_iter):
         for n in range(2*data.ndim):
             interp_cube[n] = np.roll(nan_data, shift[n], axis = axis)
         with warnings.catch_warnings():
@@ -154,7 +156,7 @@ def clean_masked(frame, mask, apt):
     nan_frame[mask==0] = np.nan
     interp_cube = np.zeros((4, frame.shape[0], frame.shape[1]))
     shift = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-    for j in range(max_iter):
+    for _j in range(max_iter):
         for n in range(4):
             interp_cube[n] = np.roll(nan_frame, shift[n], axis = (0,1))
         with warnings.catch_warnings():
@@ -187,7 +189,7 @@ def clean_cube(data_cube, mask, apt):
                             data_cube.shape[1], data_cube.shape[2]))
     shift = [(-1, 0, 0), (1, 0, 0), (0, -1, 0),
              (0, 1, 0), (0, 0, -1), (0, 0, 1)]
-    for j in range(max_iter):
+    for _j in range(max_iter):
         for n in range(6):
             interp_cube[n] = np.roll(nan_cube, shift[n], axis = (0,1,2))
         with warnings.catch_warnings():
@@ -219,7 +221,7 @@ def clean_cube2D(data_cube, mask, apt):
     interp_cube = np.zeros((4, data_cube.shape[0],
                             data_cube.shape[1], data_cube.shape[2]))
     shift = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-    for j in range(max_iter):
+    for _j in range(max_iter):
         for n in range(4):
             interp_cube[n] = np.roll(nan_cube, shift[n], axis = (1,2))
         with warnings.catch_warnings():
@@ -242,7 +244,7 @@ def check_mask(mask_cube, apt, clip=5, niter=3):
     """
     nmask = np.sum(mask_cube[:,apt]==0, axis=1)
     sel = np.ones(nmask.shape, dtype='?')
-    for n in range(niter):
+    for _n in range(niter):
         mmed = np.median(nmask[sel])
         mstd = np.std(nmask[sel])
         sel = nmask-mmed <= clip*mstd
@@ -266,7 +268,7 @@ def check_pos(xc, yc, clip=5, niter=3):
     xc0, yc0 = np.median(xc), np.median(yc)
     r = ((xc-xc0)**2+(yc-yc0)**2)**0.5
     sel = np.ones(r.shape,dtype='?')
-    for n in range(niter):
+    for _n in range(niter):
         s = np.std(r[sel])
         sel = r < clip*s
     nbad = np.sum(sel==0)
@@ -307,7 +309,7 @@ def check_val(val, clip=5, niter=3):
     """
     sel = np.ones(val.shape,dtype='?')
     val0 = np.median(val)
-    for n in range(niter):
+    for _n in range(niter):
         s = np.std(val[sel])
         val0 = np.median(val[sel])        
         sel = np.abs(val-val0) < clip*s
@@ -330,7 +332,7 @@ def check_low(val, clip=5, niter=3):
     """
     sel = np.ones(val.shape,dtype='?')
     val0 = np.median(val)
-    for n in range(niter):
+    for _n in range(niter):
         s = np.std(val[sel])
         val0 = np.median(val[sel])        
         sel = ((val0-val) < clip*s)
@@ -382,6 +384,38 @@ def psf_noise(source_model, ron_elec, e_per_ADU=1):
     return (np.abs(source_model)*e_per_ADU + ron_elec**2)**0.5 / e_per_ADU
 
 
+def empiric_noise(residual_cube, xc, yc, bg=None, niter=10, sigma_clip=3):
+    """Checks the consistency of each plane in cube, offset
+    to proper centre the PSFs. The resulting statistical
+    noise is then offset back to original position, and a
+    cube is returned with the empirical noise for each pixel
+    and plane. The underlying assumption is that the noise
+    is constant throughout the time line; e.g. varying
+    background noise has to be added.
+    """
+    shift_cube = np.zeros_like(residual_cube)
+    noise_cube = np.zeros_like(residual_cube)
+    xm = np.nanmedian(xc)
+    ym = np.nanmedian(yc)
+    dx = xc - xm
+    dy = yc - ym
+    for n in range(len(residual_cube)):
+        shift_cube[n] = shift(residual_cube[n], (-dy[n], -dx[n]), order=1)
+    shift_cube -= np.nanmedian(shift_cube, axis=0)
+    Nsigma = sigma_clip*np.nanmax(shift_cube, axis=0)
+    for n in range(niter):
+        shift_cube0 = shift_cube.copy()
+        shift_cube0[np.greater(np.abs(shift_cube), Nsigma[None,:,:])] = np.nan
+        Nsigma = sigma_clip * np.nanstd(shift_cube0, axis=0)
+    for n in range(len(residual_cube)):
+        noise_cube[n] = shift(Nsigma, (dy[n], dx[n]), order=1)
+    if bg is not None:
+        bgm = np.nanmedian(bg)
+        bg_noise2 = bg - bgm
+        noise_cube = np.abs(noise_cube**2 + bg_noise2[:,None, None])**.5
+    return noise_cube
+
+
 def integrate_psf(psf_fun, radius=23):
     """Computes the flux of the psf inside radius. Used
     to normalise the PSF.
@@ -426,33 +460,13 @@ def pix_mat(datacube, noisecube, xc, yc, mask, fscale=None):
     return pix
 
 
-######## maskcube making below ---  UPDATE!
-
 def make_maskcube(data_cube, noise_cube, model_cube,
-                  mask=None, radius=None, clip=5):
+                  mask=None, clip=5):
     """Find pixels that deviate too much from fitted models, and
-    produce a cube of masks. If radius is defined, do not check
-    for deviating pixels outside it (but still use the input mask
-    if defined).
+    produce a cube of masks.
     """
-    mask_cube = np.zeros(data_cube.shape, dtype='?')
-    if radius is not None:
-        xy_cent = np.array(model_cube[0].shape)*0.5 # Centre of frame
-        napt = (aperture(data_cube[0].shape, radius, xy_cent[0], xy_cent[1]) == 0)
-
-    for n in range(data_cube.shape[0]):
-        mask_cube[n] = _make_mask(data_cube[n], noise_cube[n],
-                 model_cube[n], clip)
-        if radius is not None:
-            mask_cube[n][napt] = 1
+    mask_cube = np.ones(data_cube.shape, dtype='?')
+    mask_cube[np.greater(np.abs(data_cube - model_cube), clip*noise_cube)] = 0
     if mask is not None:
         mask_cube *= mask
     return mask_cube        
-
-
-def _make_mask(frame, noise, model, clip=5): # deprecate
-    """Find pixels that deviate too much from fitted model, and
-    produce a mask.
-    """
-    return frame-model < (clip*noise)
-

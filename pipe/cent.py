@@ -25,48 +25,45 @@ def flux(cube):
     x = np.arange(cube.shape[1])
     y = np.arange(cube.shape[2])
     csum = np.sum(cube, (1,2))
-    xcent = np.sum(cube * x[None, :, None], (1,2)) / csum
-    ycent = np.sum(cube * y[None, None, :], (1,2)) / csum
+    xcent = np.sum(cube * x[None, None, :], (1,2)) / csum
+    ycent = np.sum(cube * y[None, :, None], (1,2)) / csum
     return xcent, ycent
 
 
 def psf(psf_spline, frame, noise, xc, yc,
-               mask = None, radius = 24, norm=1):
+               mask=None, radius=30, norm=1):
     """Use a PSF to find the best matching centre in a frame.
     Uses noise frame to clip bad pixels.
     """
-    from .reduce import coo_mat
+    from .reduce import aperture
     c_iter = 4
     clip = 10
-    xmat, ymat = coo_mat(frame.shape, xc, yc)
     xcoo =  np.arange(frame.shape[0]) - xc
     ycoo =  np.arange(frame.shape[1]) - yc
-    aperture0 = xmat**2+ymat**2 <= radius**2
+    aperture0 = aperture(frame.shape, radius=radius, xc=xc, yc=yc)
     if mask is not None:
         aperture0 *= mask
     
     sel = aperture0
-    frame_pix = frame[sel]
-    noise_pix2 = noise[sel]**2
+    frame_pix = (frame[sel]/norm)
+    noise_pix2 = (noise[sel]/norm)**2
     
     def chi(inparam):
         dx, dy, scale = inparam
-        psf_pix = psf_spline(ycoo-dy, xcoo-dx)[sel]
-        return np.sum((frame_pix-scale*psf_pix)**2/noise_pix2)
+        psf_pix = scale*psf_spline(ycoo-dy, xcoo-dx)[sel]
+        return np.sum((frame_pix-psf_pix)**2/noise_pix2)
 
-    init_param = np.array([0, 0, norm])
+    init_param = np.array([0, 0, 1])
     for _n in range(c_iter):
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
             res = minimize(chi, init_param)
-        psf_frame = psf_spline(ycoo-res.x[1], xcoo-res.x[0])
-        sel = aperture0 * (np.abs(frame-res.x[2]*psf_frame) < 
-                                clip*noise)
-        frame_pix = frame[sel]
-        noise_pix2 = noise[sel]**2
+        psf_frame = res.x[2]*psf_spline(ycoo-res.x[1], xcoo-res.x[0])
+        sel = aperture0 * (np.abs(frame - psf_frame) < clip*noise)
+        frame_pix = (frame[sel]/norm)
+        noise_pix2 = (noise[sel]/norm)**2
         init_param = res.x
-        #print(res.x)
-    return res.x
+    return res.x[0:2]
 
 
 def binary_psf(psf_spline, frame, noise, xc0, yc0, xc1, yc1,
