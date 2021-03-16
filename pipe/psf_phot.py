@@ -1277,7 +1277,7 @@ class PsfPhot:
                                            skip=skip) * self.im_apt
 
 
-    def filter_source(self, data, mask=None, clip=3, niter=10):
+    def filter_source(self, data, mask=None, clip=5, niter=10):
         """Find out what frames are missing a source, and return
         a binary index array to indicate frames with source.
         """
@@ -1288,7 +1288,7 @@ class PsfPhot:
         return sel
 
 
-    def filter_flux(self, flux, clip=3, niter=10):
+    def filter_flux(self, flux, clip=5, niter=10):
         """Verifies the consistency of the photometry and de-selects
         data points with too deviating flux. Returns a binary index array
         of consistent data points.
