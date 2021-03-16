@@ -46,12 +46,12 @@ def psf(psf_spline, frame, noise, xc, yc,
     
     sel = aperture0
     frame_pix = (frame[sel]/norm)
-    noise_pix2 = (noise[sel]/norm)**2
+    noise_pix = (noise[sel]/norm)
     
     def chi(inparam):
         dx, dy, scale = inparam
         psf_pix = scale*psf_spline(ycoo-dy, xcoo-dx)[sel]
-        return np.sum((frame_pix-psf_pix)**2/noise_pix2)
+        return np.sum(np.abs((frame_pix-psf_pix)/noise_pix))
 
     init_param = np.array([0, 0, 1])
     for _n in range(c_iter):
@@ -61,7 +61,7 @@ def psf(psf_spline, frame, noise, xc, yc,
         psf_frame = res.x[2]*psf_spline(ycoo-res.x[1], xcoo-res.x[0])
         sel = aperture0 * (np.abs(frame - psf_frame) < clip*noise)
         frame_pix = (frame[sel]/norm)
-        noise_pix2 = (noise[sel]/norm)**2
+        noise_pix = (noise[sel]/norm)
         init_param = res.x
     return res.x[0:2]
 
@@ -95,7 +95,7 @@ def binary_psf(psf_spline, frame, noise, xc0, yc0, xc1, yc1,
         psf_frame = (scale0 * psf_spline(ycoo0-dy0, xcoo0-dx0) +
                      scale1 * psf_spline(ycoo1-dy1, xcoo1-dx1))
         psf_pix = psf_frame[sel]
-        return np.sum(np.abs(frame_pix-psf_pix)**2/noise_pix**2)
+        return np.sum(np.abs((frame_pix-psf_pix)/noise_pix))
 
     init_param = np.array([0, 0, norm0, 0, 0, norm1])
     for _n in range(c_iter):
@@ -144,7 +144,7 @@ def binary_psf_fix(psf_spline, frame, noise, xc0, yc0, dx, dy,
         psf_frame = (scale0 * psf_spline(ycoo0-ddy, xcoo0-ddx) +
                      scale1 * psf_spline(ycoo1-ddy, xcoo1-ddx))
         psf_pix = psf_frame[sel]
-        return np.sum(np.abs(frame_pix-psf_pix)**2/noise_pix**2)
+        return np.sum(np.abs((frame_pix-psf_pix)/noise_pix))
 
     init_param = np.array([0, 0, norm0, norm1])
     for _n in range(c_iter):
