@@ -892,7 +892,7 @@ class PsfPhot:
         self.mess(' Spot fraction: {:d}/{:d} = {:.3f}%'.format(mss,
                                                              ns,
                                                              100*mss/ns))
-        apt = aperture(self.sa_sub[0].shape, self.pps.sa_psfrad)
+        apt = aperture(self.sa_sub[0].shape, self.pps.psf_rad)
         nanres = res - self.sa_stat_res
         nanres[:, apt==0] = np.nan
         nanres[spot] = np.nan

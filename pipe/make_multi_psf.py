@@ -35,7 +35,7 @@ class MultiPSFMaker:
         self.sa_mask_org = self.pp.sa_mask.copy()
         self.im = pp.pps.file_im is not None
         if self.im is False:
-            self.pp.plog('MPM - WARNING: no imagettes defined')
+            self.pp.mess('MPM - WARNING: no imagettes defined')
         self.measure_flux()
         self.select_frames()
         self.max_threads = max_threads
