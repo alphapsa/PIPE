@@ -148,3 +148,5 @@ ref_lib_data/*
 docs/api/*
 pipe/version.py
 pipe/config/conf.json
+pipe/config/conf_rubicon.json
+pipe/config/conf_hydra.json

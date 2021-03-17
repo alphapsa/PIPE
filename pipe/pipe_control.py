@@ -86,7 +86,7 @@ class PipeControl():
             self.pre_proc()
         if lib_num is None:
             lib_num = self.pp.find_next_lib_num(self.pp.psf_name)
-        pm = MultiPSFMaker(self.pp)
+        pm = MultiPSFMaker(self.pp, max_threads=self.pps.nthreads)
         sa_ranges = pm.find_ranges(phase=phase, sub_orbits=sub_orbits)
         if klip is None:
             klip = len(sa_ranges)
@@ -210,7 +210,7 @@ class PipeControl():
         
         if self.sa_psf_cube0 is None:
             self.process_binary()
-        pm = MultiPSFMaker(self.pp)
+        pm = MultiPSFMaker(self.pp, max_threads=self.pps.nthreads)
         sa_ranges = pm.find_ranges(phase=phase, sub_orbits=sub_orbits)
         if klip is None:
             klip = len(sa_ranges)
@@ -252,7 +252,7 @@ class PipeControl():
             self.pp.im_noise = self.pp.psf_noise_im(add_noise_sa(model_cube))
             self.pp.im_sub -= self.im_psf_cube1
             
-        pm = MultiPSFMaker(self.pp)
+        pm = MultiPSFMaker(self.pp, max_threads=self.pps.nthreads)
         # Produce primary PSF list
         pm.prod_psf(sa_ranges[:klip], lib_num=lib_num)
 
@@ -264,7 +264,7 @@ class PipeControl():
         self.pp.sa_noise = self.pp.psf_noise_sa(add_noise_sa(model_cube))
         self.pp.sa_sub -= self.sa_psf_cube0
 
-        pm = MultiPSFMaker(self.pp)
+        pm = MultiPSFMaker(self.pp, max_threads=self.pps.nthreads)
         # Don't use imagettes for secondary
         pm.im = False
 

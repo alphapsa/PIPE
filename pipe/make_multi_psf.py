@@ -54,12 +54,12 @@ class MultiPSFMaker:
         """Select frames that are good for estimating PSF
         """
         if self.im:
-            sel, ret_val = check_val(self.im_flux, clip, clip_niter)
+            sel, _ret_val = check_val(self.im_flux, clip, clip_niter)
             sel *= self.pp.filter_motion(self.pp.im_xc, self.pp.im_yc, lowfrac=0.9)
             sel *= self.pp.filter_pos(self.pp.im_xc, self.pp.im_yc)
             sel *= self.pp.filter_bad_masks(self.pp.im_mask_cube, self.pp.im_apt, clip=10)
             self.im_sel = sel
-        sel, ret_val = check_val(self.sa_flux, clip, clip_niter)
+        sel, _ret_val = check_val(self.sa_flux, clip, clip_niter)
         sel *= self.pp.filter_motion(self.pp.sa_xc, self.pp.sa_yc, lowfrac=0.99)
         sel *= self.pp.filter_pos(self.pp.sa_xc, self.pp.sa_yc)
         sel *= self.pp.filter_bad_masks(self.pp.sa_mask_cube, self.pp.sa_apt, clip=10)
