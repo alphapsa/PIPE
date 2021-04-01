@@ -84,12 +84,12 @@ class PipeControl():
         """
         if self.pp is None:
             self.pre_proc()
-        if lib_num is None:
-            lib_num = self.pp.find_next_lib_num(self.pp.psf_name)
         pm = MultiPSFMaker(self.pp, max_threads=self.pps.nthreads)
         sa_ranges = pm.find_ranges(phase=phase, sub_orbits=sub_orbits)
         if klip is None:
             klip = len(sa_ranges)
+        if lib_num is None:
+            lib_num = self.pp.find_next_lib_num(self.pp.psf_name)
         return pm.prod_psf(sa_ranges[:klip], lib_num)
     
     

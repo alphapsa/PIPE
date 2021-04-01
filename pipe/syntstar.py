@@ -35,8 +35,13 @@ class star_bg:
                 N = len(cat)
             else:
                 N = np.searchsorted(cat['distance'], maxrad)
-            
-            fscale = 10**(-0.4*(cat['MAG_CHEOPS'][:N] - cat['MAG_CHEOPS'][0]))
+            if 'MAG_CHEOPS' in hdul[1].columns.names:
+                fscale = 10**(-0.4*(cat['MAG_CHEOPS'][:N] - cat['MAG_CHEOPS'][0]))
+            elif 'MAG_GAIA' in hdul[1].columns.names: # Name change in DRP v13
+                fscale = 10**(-0.4*(cat['MAG_GAIA'][:N] - cat['MAG_GAIA'][0]))
+            else:
+                raise Exception(f'[read_starcat] Error: magnitude column not defined')
+
             dx = ((cat['RA'][0]-cat['RA'][:N]) * 
                    np.cos(np.deg2rad(cat['DEC'][0])) * 3600.0 / self.pxl_scl)
             dy = ((cat['DEC'][:N]-cat['DEC'][0]) * 3600.0 / self.pxl_scl)
