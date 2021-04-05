@@ -501,7 +501,6 @@ class PsfPhot:
                 self.im_stat_res *= (self.im_stat_res > self.pps.dark_level *
                                      self.im_hdr['EXPTIME'] * self.im_hdr['NEXP'])
                 res -= self.im_stat_res
-            self.remove_resid_smear_im(res, psf_cube)
             if iter_bg:
                 bgfact = self.iter_background(self.im_sub - psf_cube, self.im_bgstars)
                 self.im_bgstars *= np.nanmedian(bgfact)
