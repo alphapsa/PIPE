@@ -72,7 +72,8 @@ class PipeParam:
         self.smear_corr = True   # True if smearing is to be corrected
         self.smear_resid = False # True if residual smearing effect is to be removed
         self.remove_static = True    # True if median of residual cube ("static") is to 
-                                 # be subtracted (gets rid of dark current)
+                                     # be subtracted (gets rid of dark current)
+        self.static_psf_rad = True   # Limit static subtraction to area defined by PSF
         self.flatfield = True    # True if flat field correction should be applied
         self.darksub = True      # True if dark current is to be subtracted (from
                                  # Dark folder in calibpath)

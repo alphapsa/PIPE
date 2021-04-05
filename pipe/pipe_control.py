@@ -93,8 +93,8 @@ class PipeControl():
         return pm.prod_psf(sa_ranges[:klip], lib_num)
     
     
-    def combine_psf_lists(self, lib_num_list):
-        """From a list of library numbers, this method reads the
+    def combine_psf_lists(self, visit_list, lib_num=0):
+        """From a list of visits, this method reads the
         corresponding PSF library files and merges them, with the
         merged list of PSFs returned. This list can then be used
         to derive an eigen library of principal PSF components.
@@ -103,7 +103,8 @@ class PipeControl():
             self.pre_proc(pproc=False)
 
         psf_lib = []
-        for lib_num in lib_num_list:
+        for visit in visit_list:
+            self.pp.pps.visit = visit
             file_name = self.pp.psf_name(lib_num)
             with open(file_name, 'rb') as fp:
                 psf_lib.extend(pickle.load(fp))

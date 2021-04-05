@@ -368,9 +368,13 @@ class PsfPhot:
             self.sa_mask_cube[sel==0] = self.sa_mask
             res = self.sa_sub - psf_cube - bg[:,None,None]
             if self.pps.remove_static:
-                apts = cube_apt(res.shape, self.pps.psf_rad - 1, self.sa_xc, self.sa_yc)
                 nanres = res.copy()
-                nanres[apts==0] = np.nan
+                if self.pps.static_psf_rad:
+                    apts = cube_apt(res.shape, self.pps.psf_rad - 1, self.sa_xc, self.sa_yc)
+                    nanres[apts==0] = np.nan
+                else:
+                    apts = self.sa_apt
+                    nanres[:,apts==0] = np.nan
                 nanres[0,:,:] = 0   # Ensures not all values are nan
                 self.sa_stat_res = np.nanmedian(nanres, axis=0)
                 self.sa_stat_res *= (self.sa_stat_res > self.pps.dark_level *
@@ -410,6 +414,9 @@ class PsfPhot:
                                 np.array(self.sa_mask_cube, dtype='uint8'))
         if self.pps.save_psfmodel:
             self.save_cube_fits('psf_model_sa.fits', psf_cube)
+
+        if self.pps.save_static:
+            self.save_cube_fits('static_sa.fits', self.sa_stat_res)
 
         if self.pps.save_noise_cubes:
             self.save_cube_fits('psf_noise_sa.fits', self.sa_noise)
@@ -481,10 +488,14 @@ class PsfPhot:
             self.make_mask_cube_im(psf_cube, bg)
             self.im_mask_cube[sel==0] = self.im_mask
             res = self.im_sub - psf_cube - bg[:,None,None]
+            nanres = res.copy()
             if self.pps.remove_static:
-                apts = cube_apt(res.shape, self.pps.psf_rad - 1, self.im_xc, self.im_yc)
-                nanres = res.copy()
-                nanres[apts==0] = np.nan
+                if self.pps.static_psf_rad:
+                    apts = cube_apt(res.shape, self.pps.psf_rad - 1, self.im_xc, self.im_yc)
+                    nanres[apts==0] = np.nan
+                else:
+                    apts = self.im_apt
+                    nanres[:, apts==0] = np.nan
                 nanres[0,:,:] = 0   # Ensures not all values are nan
                 self.im_stat_res = np.nanmedian(nanres, axis=0)
                 self.im_stat_res *= (self.im_stat_res > self.pps.dark_level *
@@ -521,6 +532,9 @@ class PsfPhot:
                                 np.array(self.im_mask_cube, dtype='uint8'))
         if self.pps.save_psfmodel:
             self.save_cube_fits('psf_model_im.fits', psf_cube)
+
+        if self.pps.save_static:
+            self.save_cube_fits('static_im.fits', self.im_stat_res)
 
         if self.pps.save_noise_cubes:
             self.save_cube_fits('psf_noise_im.fits', self.im_noise)
@@ -893,7 +907,7 @@ class PsfPhot:
                                                              ns,
                                                              100*mss/ns))
         apt = aperture(self.sa_sub[0].shape, self.pps.psf_rad)
-        nanres = res - self.sa_stat_res
+        nanres = res.copy()
         nanres[:, apt==0] = np.nan
         nanres[spot] = np.nan
         nanres[:,int(nanres.shape[1]/2),:] = 0
@@ -912,7 +926,7 @@ class PsfPhot:
             return
         self.mess('Removing residual smear... [im]')
         spot = (psf_cube/self.im_norm) > spotfrac
-        nanres = res - self.im_stat_res
+        nanres = res.copy()
         nanres[:, self.im_apt==0] = np.nan
         ns = spot.shape[1]*spot.shape[2]
         mss = np.max(np.sum(spot,axis=(1,2)))
