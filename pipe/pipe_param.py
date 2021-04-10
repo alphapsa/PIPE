@@ -47,6 +47,7 @@ class PipeParam:
             self.calibpath = calibpath
         self.define_filenames()  # Find relevant filenames in data paths
         
+        self.plog_verbosity = 1  # Decides level of verbosity for printed messages
         self.Teff = None         # Effective temperature of target, used for 
                                  # finding appropriate flat field.
         self.gain = None         # gain in electrons/ADU

@@ -53,7 +53,7 @@ class PsfPhot:
     def __init__(self, pipe_params):
         self.pps = pipe_params
         
-        self.plog = PipeLog(self.pps.file_log)
+        self.plog = PipeLog(self.pps.file_log, self.pps.plog_verbosity)
         self.mess = self.plog.mess  # Shorthand
         
         self.plog.mess_list(self.pps.str_list()) # Save list of params to log
@@ -784,6 +784,9 @@ class PsfPhot:
     def read_starcat(self):
         """Initiates synstar object from star catalogue file
         """
+        if not self.pps.bgstars:
+            self.mess('Skipping star catalogue...')
+            return
         self.mess('Loading star catalogue...')
         shape = self.sa_debias[0].shape
         maxrad = (np.max(shape)**2 + np.max(self.pps.ccdsize)**2)**0.5
