@@ -367,19 +367,8 @@ class PsfPhot:
             self.make_mask_cube_sa(psf_cube, bg)
             self.sa_mask_cube[sel==0] = self.sa_mask
             res = self.sa_sub - psf_cube - bg[:,None,None]
-            if self.pps.remove_static:
-                nanres = res.copy()
-                if self.pps.static_psf_rad:
-                    apts = cube_apt(res.shape, self.pps.psf_rad - 1, self.sa_xc, self.sa_yc)
-                    nanres[apts==0] = np.nan
-                else:
-                    apts = self.sa_apt
-                    nanres[:,apts==0] = np.nan
-                nanres[0,:,:] = 0   # Ensures not all values are nan
-                self.sa_stat_res = np.nanmedian(nanres, axis=0)
-                self.sa_stat_res *= (self.sa_stat_res > self.pps.dark_level *
-                                     self.sa_hdr['TEXPTIME'])
-                res -= self.sa_stat_res
+            self.compute_resid_stat_sa(res)
+            res -= self.sa_stat_res
             self.remove_resid_smear_sa(res, psf_cube)
 
             if iter_bg:
@@ -487,20 +476,8 @@ class PsfPhot:
             self.mess('Iter {:d} MAD im: {:.2f} ppm'.format(n+1, mad(scale0)))
             self.make_mask_cube_im(psf_cube, bg)
             self.im_mask_cube[sel==0] = self.im_mask
-            res = self.im_sub - psf_cube - bg[:,None,None]
-            nanres = res.copy()
-            if self.pps.remove_static:
-                if self.pps.static_psf_rad:
-                    apts = cube_apt(res.shape, self.pps.psf_rad - 1, self.im_xc, self.im_yc)
-                    nanres[apts==0] = np.nan
-                else:
-                    apts = self.im_apt
-                    nanres[:, apts==0] = np.nan
-                nanres[0,:,:] = 0   # Ensures not all values are nan
-                self.im_stat_res = np.nanmedian(nanres, axis=0)
-                self.im_stat_res *= (self.im_stat_res > self.pps.dark_level *
-                                     self.im_hdr['EXPTIME'] * self.im_hdr['NEXP'])
-                res -= self.im_stat_res
+            self.compute_resid_stat_im(self.im_sub - psf_cube - bg[:,None,None])
+
             if iter_bg:
                 bgfact = self.iter_background(self.im_sub - psf_cube, self.im_bgstars)
                 self.im_bgstars *= np.nanmedian(bgfact)
@@ -892,6 +869,40 @@ class PsfPhot:
                                                           self.sa_psf,
                                                           shape=shape)
         self.sa_smear /= (self.sa_hdr['EXPTIME']*self.sa_hdr['RO_FREQU'])
+
+
+    def compute_resid_stat_sa(self, res):
+        """Compute the static part of the residuals
+        """
+        if self.pps.remove_static:
+            nanres = res.copy()
+            if self.pps.static_psf_rad:
+                apts_in = cube_apt(res.shape, self.pps.fitrad, self.sa_xc, self.sa_yc)
+                nanres[apts_in] = np.nan
+                apts_out = cube_apt(res.shape, self.pps.psf_rad - 1, self.sa_xc, self.sa_yc)
+                nanres[apts_out==0] = np.nan
+            else:
+                apts = self.sa_apt
+                nanres[:,apts==0] = np.nan
+            nanres[0,:,:] = 0   # Ensures not all values are nan
+            self.sa_stat_res = np.nanmedian(nanres, axis=0)
+
+
+    def compute_resid_stat_im(self, nanres):
+        """Compute the static part of the residuals
+        """
+        if self.pps.remove_static:
+            if self.pps.static_psf_rad:
+                apts_in = cube_apt(nanres.shape, self.pps.fitrad, self.im_xc, self.im_yc)
+                nanres[apts_in] = np.nan
+                apts_out = cube_apt(nanres.shape, self.pps.psf_rad - 1, self.im_xc, self.im_yc)
+                nanres[apts_out==0] = np.nan
+            else:
+                apts = self.im_apt
+                nanres[:, apts==0] = np.nan
+            nanres[0,:,:] = 0   # Ensures not all values are nan
+            self.im_stat_res = np.nanmedian(nanres, axis=0)
+
 
 
     def remove_resid_smear_sa(self, res, psf_cube, spotfrac=1e-4):
