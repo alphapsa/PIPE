@@ -886,6 +886,7 @@ class PsfPhot:
                 nanres[:,apts==0] = np.nan
             nanres[0,:,:] = 0   # Ensures not all values are nan
             self.sa_stat_res = np.nanmedian(nanres, axis=0)
+            self.sa_stat_res *= (self.im_stat_res > 0)
 
 
     def compute_resid_stat_im(self, nanres):
@@ -902,7 +903,7 @@ class PsfPhot:
                 nanres[:, apts==0] = np.nan
             nanres[0,:,:] = 0   # Ensures not all values are nan
             self.im_stat_res = np.nanmedian(nanres, axis=0)
-
+            self.im_stat_res *= (self.im_stat_res > 0)
 
 
     def remove_resid_smear_sa(self, res, psf_cube, spotfrac=1e-4):
