@@ -55,6 +55,7 @@ class PipeParam:
                                  # readout and pixel
         self.sa_range = sa_range # tuple of 2 integers: Range of subarray indices to
                                  # be considered. If "None", the full array is used.
+        self.mjd2bjd = True      # Use barycentric conversion from MJD to BJD
         self.binary = False      # If the binary code branch is to be used, requires
                                  # special parameters to be defined, see below
         self.psflib = None       # Name of library of PSF eigen functions to be used
