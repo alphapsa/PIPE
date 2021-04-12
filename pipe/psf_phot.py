@@ -778,7 +778,10 @@ class PsfPhot:
         function.
         """
         self.mess('Defining MJD to BJD conversion...')
-        self.mjd2bjd = mjd2bjd(self.pps.file_sa_cal)
+        if self.pps.mjd2bjd:
+            self.mjd2bjd = mjd2bjd(self.pps.file_sa_cal)
+        else: # Don't use barycentric conversion
+            self.mjd2bjd = lambda mjd : mjd + 2400000.5
 
 
     def sub_im_bias(self):
