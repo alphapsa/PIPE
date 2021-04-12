@@ -788,8 +788,11 @@ class PsfPhot:
         """Uses bias values listed in subarray table to interpolate
         the biases on the imagette cadence.
         """
-        bias = self.im_hdr['NEXP'] * interp_cube(self.im_mjd, self.sa_mjd,
-                                                        self.sa_tab['BIAS'])
+        if self.pps.bias is None:
+            bias = self.im_hdr['NEXP'] * interp_cube(self.im_mjd, self.sa_mjd,
+                                                            self.sa_tab['BIAS'])
+        else:
+            bias = np.ones_like(self.im_mjd)*self.pps.bias
         self.im_debias = self.adu2e_im((self.im_raw - bias[:,None,None])
                                        *self.im_apt)
         

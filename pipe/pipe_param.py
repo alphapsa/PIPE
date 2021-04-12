@@ -50,9 +50,10 @@ class PipeParam:
         self.plog_verbosity = 1  # Decides level of verbosity for printed messages
         self.Teff = None         # Effective temperature of target, used for 
                                  # finding appropriate flat field.
-        self.gain = None         # gain in electrons/ADU
+        self.gain = None         # gain in electrons/ADU; estimated if not defined
         self.ron = None          # read-out noise in RMS electrons per
-                                 # readout and pixel
+                                 # readout and pixel; estimated if not defined
+        self.bias = None         # bias in ADU; estimated if not defined
         self.sa_range = sa_range # tuple of 2 integers: Range of subarray indices to
                                  # be considered. If "None", the full array is used.
         self.mjd2bjd = True      # Use barycentric conversion from MJD to BJD
