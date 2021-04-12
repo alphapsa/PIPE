@@ -97,6 +97,7 @@ class PipeParam:
                                      # ratio will be read from starcat
         self.fix_flux2 = True        # Fix the flux of the secondary in a
                                      # second iteration to improve stability
+        # Save switches
         self.save_mask_cube = True   # Save mask used to fitler out bad
                                      # data (as fits file)
         self.save_resid_cube = True  # Save cube of residuals (as fits file)

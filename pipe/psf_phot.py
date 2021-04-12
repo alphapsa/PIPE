@@ -734,15 +734,16 @@ class PsfPhot:
         """Reads read-out noise from DRP-calibrated subarray file,
         returns RON in electrons. Gain must first be defined.
         """
-        self.mess('Reading subarray read-out noise...')
-        if self.pps.gain is None:
-            raise Exception('No gain defined')
-        ron = read_ron(self.pps.file_sa_cal)
-        self.pps.ron = ron*self.pps.gain
-        if ron > 0:
-            self.mess('RON = {:.2f} ADU'.format(ron))
+        if self.pps.ron is None:
+            self.mess('Reading subarray read-out noise...')
+            if self.pps.gain is None:
+                raise Exception('No gain defined')
+            ron = read_ron(self.pps.file_sa_cal)
+            self.pps.ron = ron*self.pps.gain
+        if self.pps.ron > 0:
+            self.mess('RON = {:.2f} ADU'.format(self.pps.ron))
         else:
-            self.mess(f'WARNING: RON = {ron} ADU')
+            self.mess(f'WARNING: RON = {self.pps.ron} ADU')
 
 
     def read_thermFront_2(self):
