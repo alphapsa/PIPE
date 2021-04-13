@@ -1588,7 +1588,7 @@ class PsfPhot:
         sel = self.sa_cent_sel
         
         self.centre_binary(self.psf)
-        
+        fix_flux2 = None
         for n in range(self.pps.sigma_clip_niter):
             self.mess('--- Iteration binary sa {:d}/{:d}'.format(n+1, self.pps.sigma_clip_niter))
 
@@ -1601,7 +1601,7 @@ class PsfPhot:
                             self.sa_xc0[sel], self.sa_yc0[sel],
                             self.sa_xc1[sel], self.sa_yc1[sel],
                             psfrad=self.pps.sa_psfrad, fitrad=self.pps.fitrad,
-                            nthreads=self.pps.nthreads, fix_flux2=self.pps.fix_flux2)
+                            nthreads=self.pps.nthreads, fix_flux2=fix_flux2)
 
             psf_cube00 *= self.sa_apt
             psf_cube10 *= self.sa_apt
@@ -1668,7 +1668,8 @@ class PsfPhot:
         self.im_xc0, self.im_yc0 = self.im_xc, self.im_yc
         dx, dy = rotate_position(self.binary_x1, self.binary_y1, self.im_att[:,3])
         self.im_xc1, self.im_yc1 = self.im_xc0 + dx, self.im_yc0 + dy
-        
+        fix_flux2 = None
+       
         for n in range(self.pps.sigma_clip_niter):
             self.mess('--- Iteration binary im {:d}/{:d}'.format(n+1, self.pps.sigma_clip_niter))
 
@@ -1681,7 +1682,7 @@ class PsfPhot:
                             self.im_xc0[sel], self.im_yc0[sel],
                             self.im_xc1[sel], self.im_yc1[sel],
                             psfrad=self.pps.sa_psfrad, fitrad=self.pps.fitrad,
-                            nthreads=self.pps.nthreads, fix_flux2=self.pps.fix_flux2)
+                            nthreads=self.pps.nthreads, fix_flux2=fix_flux2)
 
             psf_cube00 *= self.im_apt
             psf_cube10 *= self.im_apt
