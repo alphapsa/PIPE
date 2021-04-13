@@ -1601,6 +1601,7 @@ class PsfPhot:
                             self.sa_xc0[sel], self.sa_yc0[sel],
                             self.sa_xc1[sel], self.sa_yc1[sel],
                             psfrad=self.pps.sa_psfrad, fitrad=self.pps.fitrad,
+                            krn_scl=self.pps.motion_step, krn_rad=self.pps.motion_nsteps,
                             nthreads=self.pps.nthreads, fix_flux2=fix_flux2)
 
             psf_cube00 *= self.sa_apt
@@ -1682,6 +1683,7 @@ class PsfPhot:
                             self.im_xc0[sel], self.im_yc0[sel],
                             self.im_xc1[sel], self.im_yc1[sel],
                             psfrad=self.pps.sa_psfrad, fitrad=self.pps.fitrad,
+                            krn_scl=self.pps.motion_step, krn_rad=self.pps.motion_nsteps,
                             nthreads=self.pps.nthreads, fix_flux2=fix_flux2)
 
             psf_cube00 *= self.im_apt
