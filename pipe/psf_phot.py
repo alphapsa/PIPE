@@ -414,9 +414,10 @@ class PsfPhot:
             emp_noise_cube = empiric_noise(res, self.sa_xc, self.sa_yc, bg + self.sa_bg)
             self.save_cube_fits('empiric_noise_sa.fits', emp_noise_cube)
 
+        sel = (flag==0)
         self.mad_sa = mad(scale)
         self.mess('MAD sa: {:.2f} ppm'.format(self.mad_sa))
-        self.mess('MAD sa[flag==0]: {:.2f} ppm'.format(mad(scale[flag==0])))
+        self.mess('MAD sa[flag==0]: {:.2f} ppm'.format(mad(scale[sel])))
 
         return  scale, bg, flux, err, sel, w
 
@@ -519,9 +520,10 @@ class PsfPhot:
             emp_noise_cube = empiric_noise(res, self.im_xc, self.im_yc, bg + self.im_bg)
             self.save_cube_fits('empiric_noise_im.fits', emp_noise_cube)
 
+        sel = (flag==0)
         self.mad_im = mad(scale)
         self.mess('MAD im: {:.2f} ppm'.format(self.mad_im))
-        self.mess('MAD im[flag==0]: {:.2f} ppm'.format(mad(scale[flag==0])))
+        self.mess('MAD im[flag==0]: {:.2f} ppm'.format(mad(scale[sel])))
         
         return  scale, bg, flux, err, sel, w
 
