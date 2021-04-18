@@ -541,8 +541,8 @@ class PsfPhot:
             # non-linear correction curve
             self.mess('Tweaking non-linear correction for low exposures [sa]')
             def nonlin_tweak(f):
-                ret = (f/self.sa_hdr['NEXP']-100)/700*0.04+0.96
-                ret[f/self.sa_hdr['NEXP'] > 800] = 1
+                ret = (f/self.sa_hdr['NEXP']-100)/(self.pps.nl_lim-100)*self.pps.nl_100 + 1 - self.pps.nl_100
+                ret[f/self.sa_hdr['NEXP'] > self.pps.nl_lim] = 1
                 return ret
             self.sa_debias /= nonlin_tweak(self.sa_debias)
             self.sa_bg /= nonlin_tweak(self.sa_bg)
@@ -816,8 +816,8 @@ class PsfPhot:
             # non-linear correction curve
             self.mess('Tweaking non-linear correction for low exposures [sa]')
             def nonlin_tweak(f):
-                ret = (f/self.im_hdr['NEXP']-100)/700*0.04+0.96
-                ret[f/self.im_hdr['NEXP']>800] = 1
+                ret = (f/self.im_hdr['NEXP']-100)/(self.pps.nl_lim-100)*self.pps.nl_100 + 1 - self.pps.nl_100
+                ret[f/self.im_hdr['NEXP'] > self.pps.nl_lim] = 1
                 return ret
             im_e /= nonlin_tweak(im_e)
         return im_e

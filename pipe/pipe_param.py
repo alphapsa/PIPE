@@ -87,6 +87,8 @@ class PipeParam:
         self.non_lin_tweak = False # Apply empirical tweak to non-linear correction
                                    # at low exposure levels, for both subarrays
                                    # and imagettes
+        self.nl_100 = 0.04        # Non-linearity tweak correction at 100 electrons
+        self.nl_lim = 800       # Non-linearity tweak until this number of electrons
         self.empiric_noise = False # Use noise estimated from PSF residuals in time
                                    # series rather than assuming photon statistics
         # Binary parameters
