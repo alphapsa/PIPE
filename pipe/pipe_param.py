@@ -71,6 +71,7 @@ class PipeParam:
                                         # be corrected (SOC bug) by interpolating
                                  # subarray times stamps
         self.bgstars = True      # True if background stars are to be subtracted
+        self.limflux = 1e-3      # Inlude bgstars down to this fraction of the target flux
         self.mask_badpix = True  # True if bad pixels are to be masked
         self.smear_corr = True   # True if smearing is to be corrected
         self.smear_resid = False # True if residual smearing effect is to be removed

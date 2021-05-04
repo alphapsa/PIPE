@@ -1291,7 +1291,8 @@ class PsfPhot:
                                            blurdeg=self.sa_att[n,4],
                                            psf_fun=self.sa_psf,
                                            shape=self.sa_debias[0].shape,
-                                           skip=skip) * self.sa_apt
+                                           skip=skip,
+                                           limflux=self.pps.limflux) * self.sa_apt
 
 
     def make_star_bg_cube_im(self, skip=[0]):
@@ -1311,7 +1312,8 @@ class PsfPhot:
                                            blurdeg=self.im_att[n,4],
                                            psf_fun=self.im_psf,
                                            shape=self.im_debias[0].shape,
-                                           skip=skip) * self.im_apt
+                                           skip=skip,
+                                           limflux=self.pps.limflux) * self.im_apt
 
 
     def filter_source(self, data, mask=None, clip=5, niter=10):
