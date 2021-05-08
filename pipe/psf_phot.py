@@ -901,15 +901,12 @@ class PsfPhot:
     def compute_resid_stat_im(self, nanres):
         """Compute the static part of the residuals
         """
+
         if self.pps.remove_static:
             if self.pps.static_psf_rad:
-                apts_in = cube_apt(nanres.shape, self.pps.fitrad, self.im_xc, self.im_yc)
-                nanres[apts_in] = np.nan
-                apts_out = cube_apt(nanres.shape, self.pps.psf_rad - 1, self.im_xc, self.im_yc)
-                nanres[apts_out==0] = np.nan
-            else:
-                apts = self.im_apt
-                nanres[:, apts==0] = np.nan
+                return
+            apts = self.im_apt
+            nanres[:, apts==0] = np.nan
             nanres[0,:,:] = 0   # Ensures not all values are nan
             self.im_stat_res = np.nanmedian(nanres, axis=0)
             self.im_stat_res *= (self.im_stat_res > 0)
@@ -1490,8 +1487,7 @@ class PsfPhot:
         """
         model = psf_cube + bg[:,None,None]
         res = self.sa_sub - model
-        if self.pps.remove_static:
-            res -= self.sa_stat_res
+        res -= self.sa_stat_res
         return res
 
 
@@ -1501,8 +1497,7 @@ class PsfPhot:
         """
         model = psf_cube + bg[:,None,None]
         res = self.im_sub - model
-        if self.pps.remove_static:
-            res -= self.im_stat_res
+        res -= self.im_stat_res
         return res
 
 
