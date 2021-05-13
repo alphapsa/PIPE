@@ -16,7 +16,7 @@ from .spline_pca import psf_integral
 
 def fit(psf_list, frame, noise, mask, xc, yc, 
                 fitrad=50, defrad=70, krn_scl=0.3,
-                krn_rad=3, bg_fit=0):
+                krn_rad=3, bg_fit=0, non_negative=False):
     """Fit multiple PSF PCs simultaneousy to single frame. Fits
     for motion blur. fitrad is radius to fit PSF, defrad is radius
     out to which PSF is defined.
@@ -60,7 +60,7 @@ def fit(psf_list, frame, noise, mask, xc, yc,
         psf = psf_list[0](ycoo-yk[n], xcoo-xk[n])
         psfs[:,n] = psf[sel]/nvec
 
-    kvec = _least_square(psfs, fvec/nvec)
+    kvec = _least_square(psfs, fvec/nvec, non_negative=non_negative)
          
     # Use derived offset matrix to fit PSF list
 
@@ -76,7 +76,7 @@ def fit(psf_list, frame, noise, mask, xc, yc,
             psf += kvec[n]*psf_list[m](ycoo-yk[n], xcoo-xk[n])
         psfs[:,m] = psf[sel]/nvec
                        
-    w = _least_square(psfs, fvec/nvec)
+    w = _least_square(psfs, fvec/nvec, non_negative=non_negative)
  
     psf = np.zeros(sel.shape)
     for m in range(Npsf):
@@ -107,7 +107,8 @@ def fit(psf_list, frame, noise, mask, xc, yc,
     
 
 def fit_binary(psf_list0, psf_list1, frame, noise, mask, xc0, yc0, xc1, yc1,
-                psfrad=70, fitrad=30, krn_scl=0.3, krn_rad=3, fix_flux2=None):
+                psfrad=70, fitrad=30, krn_scl=0.3, krn_rad=3,
+                fix_flux2=None, non_negative=False):
     """Fit multiple PSF PCs simultaneousy for binary in single frame. Fits
     for PCs motion blur independently for the two components. PSF libraries
     are defined for each component. If fix_flux2 is defined, then the flux
@@ -166,7 +167,7 @@ def fit_binary(psf_list0, psf_list1, frame, noise, mask, xc0, yc0, xc1, yc1,
         psfs[:, n] = psf0[aperture]/nvec
         psfs[:, n+Nk] = psf1[aperture]/nvec
 
-    kvec = _least_square(psfs, fvec/nvec)
+    kvec = _least_square(psfs, fvec/nvec, non_negative=non_negative)
 
     bg = kvec[-1]
     psfs = np.zeros((Npix, 2*Npsf+1))
@@ -184,7 +185,7 @@ def fit_binary(psf_list0, psf_list1, frame, noise, mask, xc0, yc0, xc1, yc1,
         psfs[:, m] = psf0[aperture]/nvec    
         psfs[:, m+Npsf] = psf1[aperture]/nvec    
     
-    w = _least_square(psfs, fvec/nvec)
+    w = _least_square(psfs, fvec/nvec, non_negative=non_negative)
     
     # Second iteration: find new offset coefficients
     # using derived PSF

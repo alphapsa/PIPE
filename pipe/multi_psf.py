@@ -15,7 +15,7 @@ from .psf import fit as psf_fit, fit_binary as psf_fit_binary
 
 def fit(psf_list, data_cube, noise_cube, mask, xc, yc,
                 fitrad=50, defrad=70, krn_scl=0.3,
-                krn_rad=3, bg_fit=0, nthreads=16):
+                krn_rad=3, bg_fit=0, nthreads=16, non_negative=False):
     """Fit a defined PSF to a frame by constructing a matrix of
     offsets. Then produce a least-square fit of base functions
     defined by the PSF offset according to the matrix. The idea is
@@ -49,7 +49,7 @@ def fit(psf_list, data_cube, noise_cube, mask, xc, yc,
         noise = noise_cube[n]
         
         inparam.append((psf_list, frame, noise, mask0, xc[n], yc[n], 
-                fitrad, defrad, krn_scl, krn_rad, bg_fit))
+                fitrad, defrad, krn_scl, krn_rad, bg_fit, non_negative))
     
     with mp.Pool(nthreads0) as p:
         outparam = p.starmap(psf_fit, inparam)
@@ -65,7 +65,7 @@ def fit(psf_list, data_cube, noise_cube, mask, xc, yc,
 
 def fit_binary(psf_list0, psf_list1, data_cube, noise_cube, mask, xc0, yc0,
                           xc1, yc1, psfrad=70, fitrad=30, krn_scl=0.3,
-                          krn_rad=3, nthreads=16, fix_flux2=None):
+                          krn_rad=3, nthreads=16, fix_flux2=None, non_negative=False):
     """Fit two PSFs independently to both components of a binary, 
     in a similar way as the regular multi_psf.fit function 
     described above.
@@ -97,7 +97,7 @@ def fit_binary(psf_list0, psf_list1, data_cube, noise_cube, mask, xc0, yc0,
         noise = noise_cube[n]
         
         inparam.append((psf_list0, psf_list1, frame, noise, mask0, xc0[n], yc0[n], xc1[n], yc1[n], 
-                psfrad, fitrad, krn_scl, krn_rad, fix_flux2))
+                psfrad, fitrad, krn_scl, krn_rad, fix_flux2, non_negative))
     
     with mp.Pool(nthreads0) as p:
         outparam = p.starmap(psf_fit_binary, inparam)

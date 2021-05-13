@@ -355,7 +355,8 @@ class PsfPhot:
                             fitrad=self.pps.fitrad,
                             defrad=self.pps.psf_rad,
                             bg_fit=self.pps.bg_fit,
-                            nthreads=self.pps.nthreads)
+                            nthreads=self.pps.nthreads,
+                            non_negative=self.pps.non_neg_lsq)
             # Interpolate over frames without source
             t0 = self.sa_att[sel, 0]
             t = self.sa_att[:, 0]        
@@ -464,7 +465,8 @@ class PsfPhot:
                             fitrad=self.pps.fitrad,
                             defrad=self.pps.psf_rad,
                             bg_fit=self.pps.bg_fit,
-                            nthreads=self.pps.nthreads)
+                            nthreads=self.pps.nthreads, 
+                            non_negative=self.pps.non_neg_lsq)
             psf_cube0 *= self.im_apt
 
             # Interpolate over frames without source
@@ -1601,7 +1603,8 @@ class PsfPhot:
                             self.sa_xc1[sel], self.sa_yc1[sel],
                             psfrad=self.pps.sa_psfrad, fitrad=self.pps.fitrad,
                             krn_scl=self.pps.motion_step, krn_rad=self.pps.motion_nsteps,
-                            nthreads=self.pps.nthreads, fix_flux2=fix_flux2)
+                            nthreads=self.pps.nthreads, fix_flux2=fix_flux2, 
+                            non_negative=self.pps.non_neg_lsq)
 
             psf_cube00 *= self.sa_apt
             psf_cube10 *= self.sa_apt
@@ -1683,7 +1686,8 @@ class PsfPhot:
                             self.im_xc1[sel], self.im_yc1[sel],
                             psfrad=self.pps.sa_psfrad, fitrad=self.pps.fitrad,
                             krn_scl=self.pps.motion_step, krn_rad=self.pps.motion_nsteps,
-                            nthreads=self.pps.nthreads, fix_flux2=fix_flux2)
+                            nthreads=self.pps.nthreads, fix_flux2=fix_flux2,
+                            non_negative=self.pps.non_neg_lsq)
 
             psf_cube00 *= self.im_apt
             psf_cube10 *= self.im_apt
