@@ -76,7 +76,7 @@ class star_bg:
               skip=[0], limflux=0, single_id=None, max_psf_rad=70):
         """Produces image with background stars at defined roll angle.
         skip is a list of entries to be skipped. limflux is at what fractional
-        flux of the target background stars should be ignored. The signle_id is
+        flux of the target background stars should be ignored. The single_id is
         to select and draw an image of the selected star only.
         """        
         if shape == None:
@@ -148,17 +148,17 @@ class star_bg:
                                   max_psf_rad=max_psf_rad)/N
         return ret_img
 
-    def smear(self, x0, y0, rolldeg, blurdeg, psf_fun, oversample=1,
+    def smear(self, x0, y0, rolldeg, blurdeg, psf_fun,
               shape=None, limflux=1e-2, max_psf_rad=70):
         """Computes the smearing trail for all stars, including target.
         Returns a 1D array that can then be properly expanded to a 1D image.
         """
         if shape == None:
             shape = self.shape
-        rb = self.rotblur(x0, y0, rolldeg, blurdeg, psf_fun,
-                oversample, shape, skip=[], limflux=limflux,
+        im = self.image(x0, y0, rolldeg, psf_fun,
+                shape=shape, skip=[], limflux=limflux,
                 max_psf_rad=max_psf_rad)
-        return np.sum(rb, axis=0)
+        return np.sum(im, axis=0)
 
 
 def rotate_position(x, y, rolldeg):
