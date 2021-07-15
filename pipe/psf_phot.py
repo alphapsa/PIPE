@@ -201,6 +201,22 @@ class PsfPhot:
         self.eigen_psf = pickle.load(open(file_psf, 'rb'))
         self.psf = self.eigen_psf[0]
 
+        if self.pps.bg_psflib is None:
+            self.bg_psf = self.psf
+        else:
+            if isinstance(self.pps.bg_psflib, str):
+                file_psf = self.pps.bg_psflib
+            else:
+                file_psf = self.eigen_name(self.pps.bg_psflib)
+            if not os.path.isfile(file_psf):
+                raise Exception(f'BG PSF eigen library file \"{file_psf}\" not found')
+
+            self.mess('BG PSF eigen library defined: ')
+            self.mess(f' \"{file_psf}\"')
+            self.bg_psf = pickle.load(open(file_psf, 'rb'))[0]
+
+
+
 
     def find_next_lib_num(self, name_fun, max_num=100000):
         """Find first available number without existing
@@ -269,7 +285,11 @@ class PsfPhot:
         sa_med_flux = self.median_flux_sa(radius=self.pps.im_psfrad)
         self.sa_norm = sa_med_flux/psf_flux
         self.sa_psf = lambda y, x, grid=True: self.sa_norm * self.psf(y, x, grid=grid)
-        
+
+        bg_psf_flux = integrate_psf(self.bg_psf, radius=self.pps.im_psfrad)
+        self.sa_bg_norm = sa_med_flux/bg_psf_flux
+        self.sa_bg_psf = lambda y, x, grid=True: self.sa_bg_norm * self.bg_psf(y, x, grid=grid)
+
         if self.pps.binary:
             skip_bg_stars = [0, self.pps.secondary]
         else:
@@ -292,6 +312,9 @@ class PsfPhot:
 
             self.im_norm = sa_med_flux/(psf_flux * self.nexp)
             self.im_psf = lambda y, x, grid=True: self.im_norm * self.psf(y, x, grid=grid)
+            self.im_bg_norm = sa_med_flux/(bg_psf_flux * self.nexp)
+            self.im_bg_psf = lambda y, x, grid=True: self.im_bg_norm * self.bg_psf(y, x, grid=grid)
+
             self.make_star_bg_cube_im(skip=skip_bg_stars)
             self.update_smearing_im()
             self.update_sub_im()
@@ -1288,7 +1311,7 @@ class PsfPhot:
                                            self.sa_yc[n],
                                            rolldeg=self.sa_att[n,3],
                                            blurdeg=self.sa_att[n,4],
-                                           psf_fun=self.sa_psf,
+                                           psf_fun=self.sa_bg_psf,
                                            shape=self.sa_debias[0].shape,
                                            skip=skip,
                                            limflux=self.pps.limflux) * self.sa_apt
@@ -1309,7 +1332,7 @@ class PsfPhot:
                                            self.im_yc[n],
                                            rolldeg=self.im_att[n,3],
                                            blurdeg=self.im_att[n,4],
-                                           psf_fun=self.im_psf,
+                                           psf_fun=self.im_bg_psf,
                                            shape=self.im_debias[0].shape,
                                            skip=skip,
                                            limflux=self.pps.limflux) * self.im_apt

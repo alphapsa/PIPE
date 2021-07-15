@@ -61,6 +61,9 @@ class PipeParam:
                                  # special parameters to be defined, see below
         self.psflib = None       # Name of library of PSF eigen functions to be used
                                  # (located in calibpath/psf_lib/)
+        self.bg_psflib = None    # Name of library of PSF eigen functions to be used
+                                 # for background stars (located in calibpath/psf_lib/)
+                                 # If None, then psflib is used.
         self.psf_rad = 70        # PSF lib defined out to this integer radius
         self.nthreads = os.cpu_count()-1    # Number of threads to use; defaulted to 
                                             # the number of system virtual cores - 1
