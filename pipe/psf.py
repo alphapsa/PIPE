@@ -25,7 +25,7 @@ def fit(psf_list, frame, noise, mask, xc, yc,
         Determined background (single value)
         Motion blur matrix
         Scale factor data/PSF (proportional to flux)
-        Arrray of PSF PC coefficients
+        Array of PSF PC coefficients
     """
     xmat, ymat = coo_mat(frame.shape, xc, yc)
     xcoo =  np.arange(frame.shape[0]) - xc

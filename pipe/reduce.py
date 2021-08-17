@@ -402,7 +402,7 @@ def empiric_noise(residual_cube, xc, yc, bg=None, niter=10, sigma_clip=3):
     for n in range(len(residual_cube)):
         shift_cube[n] = shift(residual_cube[n], (-dy[n], -dx[n]), order=1)
     shift_cube -= np.nanmedian(shift_cube, axis=0)
-    Nsigma = sigma_clip*np.nanmax(shift_cube, axis=0)
+    Nsigma = sigma_clip*np.nanmax(np.abs(shift_cube), axis=0)
     for n in range(niter):
         shift_cube0 = shift_cube.copy()
         shift_cube0[np.greater(np.abs(shift_cube), Nsigma[None,:,:])] = np.nan
