@@ -20,7 +20,7 @@ import numpy as np
 from scipy.ndimage import shift
 from astropy.io import fits
 
-from .analyse import mad, psf_phot_cube, sigma_clip, smo_spl_bg
+from .analyse import mad, psf_phot_cube, sigma_clip, smo_bg, smo_bg_orb
 from .cent import (
     flux as cent_flux
 )
@@ -391,8 +391,13 @@ class PsfPhot:
             scale = np.interp(t, t0, scale0)
             bg += np.interp(t, t0, bg0)
             if (self.pps.bg_smo is not False) and (n == niter-2):
-                smoothed_bg = smo_spl_bg(self.sa_att[sel,0], self.sa_bg[sel]+bg[sel], smo_len=self.pps.bg_smo,
-                                     smo_lim=self.pps.bg_smo_lim)
+                if self.pps.bg_smo_orb:
+                    smoothed_bg = smo_bg_orb(self.sa_att[sel, 0], self.sa_bg[sel] + bg[sel], 
+                                             self.sa_att[sel, 3], smo_len=self.pps.bg_smo,
+                                             smo_lim=self.pps.bg_smo_lim)
+                else:
+                    smoothed_bg = smo_bg(self.sa_att[sel, 0], self.sa_bg[sel] + bg[sel],
+                                         smo_len=self.pps.bg_smo, smo_lim=self.pps.bg_smo_lim)
                 bg[sel] = smoothed_bg - self.sa_bg[sel]
                 bg_fit = -1
                 
@@ -488,18 +493,21 @@ class PsfPhot:
         else:
             iter_bg = False
 
+        bg = np.zeros_like(self.im_bg)
+        bg_fit = self.pps.bg_fit
+
         for n in range(niter):
             self.mess('--- Iteration im {:d}/{:d}'.format(n+1, niter))
             # Only extract photometry from frames with source
             psf_cube0, scale0, bg0, w0 = multi_psf_fit(
                             self.eigen_psf[:klip],
-                            self.im_sub[sel] - self.im_stat_res,
+                            self.im_sub[sel] - self.im_stat_res - bg[sel, None, None],
                             self.im_noise[sel],
                             self.im_mask_cube[sel],
                             self.im_xc[sel], self.im_yc[sel],
                             fitrad=self.pps.fitrad,
                             defrad=self.pps.psf_rad,
-                            bg_fit=self.pps.bg_fit,
+                            bg_fit=bg_fit,
                             nthreads=self.pps.nthreads, 
                             non_negative=self.pps.non_neg_lsq)
             psf_cube0 *= self.im_apt
@@ -511,6 +519,18 @@ class PsfPhot:
             w = interp_cube_ext(t, t0, w0)
             scale = np.interp(t, t0, scale0)
             bg = np.interp(t, t0, bg0)
+            if (self.pps.bg_smo is not False) and (n == niter-2):
+                if self.pps.bg_smo_orb:
+                    smoothed_bg = smo_bg_orb(self.im_att[sel, 0], self.im_bg[sel] + bg[sel], 
+                                             self.im_att[sel, 3], smo_len=self.pps.bg_smo*self.nexp,
+                                             smo_lim=self.pps.bg_smo_lim)
+                else:
+                    smoothed_bg = smo_bg(self.im_att[sel, 0], self.im_bg[sel] + bg[sel],
+                                         smo_len=self.pps.bg_smo*self.nexp,
+                                         smo_lim=self.pps.bg_smo_lim)
+                bg[sel] = smoothed_bg - self.im_bg[sel]
+                bg_fit = -1
+
             self.mess('Iter {:d} MAD im: {:.2f} ppm'.format(n+1, mad(scale0)))
             self.make_mask_cube_im(psf_cube, bg)
             self.im_mask_cube[sel==0] = self.im_mask
