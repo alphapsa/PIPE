@@ -374,7 +374,7 @@ class PsfPhot:
             self.mess('--- Iteration sa {:d}/{:d}'.format(n+1, niter))
             psf_cube0, scale0, bg0, w0 = multi_psf_fit(
                             self.eigen_psf[:klip],
-                            self.sa_sub[sel] - self.sa_stat_res - bg[:, None, None],
+                            self.sa_sub[sel] - self.sa_stat_res - bg[sel, None, None],
                             self.sa_noise[sel],
                             self.sa_mask_cube[sel],
                             self.sa_xc[sel], self.sa_yc[sel],
