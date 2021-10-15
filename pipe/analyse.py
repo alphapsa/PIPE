@@ -11,6 +11,7 @@ photometry.
 """
 import numpy as np
 import os
+from scipy.interpolate import LSQUnivariateSpline
 from .read import lightcurve
 
 
@@ -159,6 +160,17 @@ def sigma_clip(data, clip=5, niter=5):
         m = np.median(data[ind])
         ind = np.abs(data-m) < clip*sigma
     return ind
+
+
+def smo_spl_bg(BJD, BG, smo_len=10, smo_lim=1.2):
+    """Smoothing spline fit for background. smo_len is number of data
+    points to smooth over.
+    """
+    ind = BG < smo_lim*np.median(BG)
+    tn = np.arange(smo_len, len(BJD)-smo_len, smo_len)
+    spl = LSQUnivariateSpline(BJD[ind], BG[ind], BJD[tn])
+    BG[ind] = spl(BJD[ind])
+    return BG
 
 
 def load_lc(name, visit, version=0, postfix=''):

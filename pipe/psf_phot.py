@@ -20,7 +20,7 @@ import numpy as np
 from scipy.ndimage import shift
 from astropy.io import fits
 
-from .analyse import mad, psf_phot_cube, sigma_clip
+from .analyse import mad, psf_phot_cube, sigma_clip, smo_spl_bg
 from .cent import (
     flux as cent_flux
 )
@@ -367,17 +367,20 @@ class PsfPhot:
         else:
             iter_bg = False
 
+        bg = np.zeros_like(self.sa_bg)
+        bg_fit = self.pps.bg_fit
+
         for n in range(niter):
             self.mess('--- Iteration sa {:d}/{:d}'.format(n+1, niter))
             psf_cube0, scale0, bg0, w0 = multi_psf_fit(
                             self.eigen_psf[:klip],
-                            self.sa_sub[sel] - self.sa_stat_res,
+                            self.sa_sub[sel] - self.sa_stat_res - bg[:, None, None],
                             self.sa_noise[sel],
                             self.sa_mask_cube[sel],
                             self.sa_xc[sel], self.sa_yc[sel],
                             fitrad=self.pps.fitrad,
                             defrad=self.pps.psf_rad,
-                            bg_fit=self.pps.bg_fit,
+                            bg_fit=bg_fit,
                             nthreads=self.pps.nthreads,
                             non_negative=self.pps.non_neg_lsq)
             # Interpolate over frames without source
@@ -386,7 +389,12 @@ class PsfPhot:
             psf_cube = interp_cube_ext(t, t0, psf_cube0)
             w = interp_cube_ext(t, t0, w0)
             scale = np.interp(t, t0, scale0)
-            bg = np.interp(t, t0, bg0)
+            bg += np.interp(t, t0, bg0)
+            if (self.pps.bg_smo is not False) and (n == niter-1):
+                bg[sel] = smo_spl_bg(self.sa_att[sel,0], bg[sel], smo_len=self.pps.bgfit_smo,
+                                     smo_lim=self.pps.bgfit_smo_lim)
+                bg_fit = -1
+                
             self.mess('Iter {:d} MAD sa: {:.2f} ppm'.format(n+1, mad(scale0)))
             self.make_mask_cube_sa(psf_cube, bg)
             self.sa_mask_cube[sel==0] = self.sa_mask
@@ -411,6 +419,9 @@ class PsfPhot:
         flux, err = self.psf_phot_sa(psf_cube, bg, self.pps.im_psfrad-2)
         if self.pps.save_resid_cube:
             self.save_residuals_sa('', psf_cube, bg)
+
+        if self.pps.save_bg_cube:
+            self.save_bg_sa('', psf_cube, bg)            
         
         flagCenter = (self.filter_pos(self.sa_xc, self.sa_yc) == 0)
         flagBadPix = (self.filter_bad_masks(self.sa_mask_cube, self.sa_apt) == 0)
@@ -1527,11 +1538,19 @@ class PsfPhot:
 
 
     def save_residuals_sa(self, prefix, psf_cube, bg):
-        """Subtract model from data and save as a fits cube
-        in the output directory.
+        """Subtract model including bg stars from data and 
+        save as a fits cube in the output directory.
         """
         res = self.compute_residuals_sa(psf_cube=psf_cube, bg=bg)
         self.save_cube_fits(prefix+'residuals_sa.fits', res)
+
+    def save_bg_sa(self, prefix, psf_cube, bg):
+        """Subtract model (but not bg stars) from data and save 
+        as a fits cube in the output directory.
+        """
+        res = self.compute_residuals_sa(psf_cube=psf_cube, bg=bg)
+        res += self.sa_bgstars
+        self.save_cube_fits(prefix+'bgresiduals_sa.fits', res)
 
 
     def save_residuals_im(self, prefix, psf_cube, bg):

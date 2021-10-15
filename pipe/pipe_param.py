@@ -69,6 +69,10 @@ class PipeParam:
                                             # the number of system virtual cores - 1
         self.bg_fit = 0          # Simultaneous background to be fit with PSF:
                                  # -1: no, 0: constant, 1: bilinear plane, 2: parabolic 
+        self.bg_smo = False      # Smooth background estimate with spline using this 
+                                 # resolution in data points 
+        self.bg_smo_lim = 1.2    # Only smooth for BG points below this times median
+        self.bg_smo_orb = False  # If true, coming combine BG of different orbits
         self.drp_bg_corr = True  # True if bg subtraction from DRP should be corrected
         self.resample_im_times = True   # True if the time stamps for imagettes should
                                         # be corrected (SOC bug) by interpolating
@@ -109,6 +113,7 @@ class PipeParam:
         self.save_mask_cube = True   # Save mask used to fitler out bad
                                      # data (as fits file)
         self.save_resid_cube = True  # Save cube of residuals (as fits file)
+        self.save_bg_cube = False    # Save cube of residuals with bg stars (as fits file)
         self.save_static = False     # Save derived static image as fits file
         self.save_psfmodel = False   # Save fitted model of PSF cube
         self.save_motion_mat = False # Save fitted motion blur matrix
