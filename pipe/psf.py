@@ -46,7 +46,7 @@ def fit(psf_list, frame, noise, mask, xc, yc,
     Nk = len(xk)
     Npsf = len(psf_list)
     
-    if bg_fit ==0:
+    if bg_fit == 0:
         psfs = np.zeros((Npix, Nk+1))
         psfs[:,Nk] = 1/nvec     # background
     else:

@@ -97,27 +97,13 @@ class star_bg:
             # Skip faint stars
             if self.fscale[n] < limflux: continue
             
-            if self.fscale[n] > 0.1: # Really bright
-                psf_rad = min(70, max_psf_rad)
-            elif self.fscale[n] > 1e-3: # Pretty bright
-                psf_rad = min(50, max_psf_rad)
-            else: # Not so bright
-                psf_rad = min(30, max_psf_rad)
-            i = int(x0 + dx[n])
-            i0 = i - psf_rad
-            # Skip stars further than PSF radius outside image
-            if i0 >= shape[1]: continue
-            i1 = i + psf_rad
-            if i1 <= 0: continue
-            i0 = max(i0, 0)
-            i1 = min(i1, shape[1])
-            j = int(y0 + dy[n])
-            j0 = j - psf_rad
-            if j0 >= shape[0]: continue
-            j1 = j + psf_rad
-            if j1 <= 0: continue
-            j0 = max(j0, 0)
-            j1 = min(j1, shape[0])
+            psf_rad = def_psf_rad(self.fscale[n], max_psf_rad=max_psf_rad)
+            inds = find_area_inds(x0 + dx[n], y0 + dy[n], shape=shape, radius=psf_rad)
+            if inds is None:
+                continue
+            else:
+                i0, i1, j0, j1 = inds
+
             ddx = xcoo[i0:i1] - dx[n]
             ddy = ycoo[j0:j1] - dy[n]
             psf_mat = psf_fun(ddy, ddx)
@@ -145,7 +131,7 @@ class star_bg:
             ret_img += self.image(x0, y0, roll, psf_fun,
                                   shape=shape, skip=skip,
                                   limflux=limflux, single_id=single_id,
-                                  max_psf_rad=max_psf_rad)/N
+                                  max_psf_rad=max_psf_rad)/N 
         return ret_img
 
     def smear(self, x0, y0, rolldeg, blurdeg, psf_fun,
@@ -178,3 +164,39 @@ def derotate_position(xroll, yroll, rolldegs):
     roll angle (in degrees)
     """
     return rotate_position(xroll, yroll, -rolldegs)
+
+
+def def_psf_rad(fscale, max_psf_rad=70):
+    """Define extent of PSF. E.g., brighter stars have a greater
+    range of influence than fainter stars.
+    """
+    if fscale > 0.1: # Really bright
+        return min(70, max_psf_rad)
+    elif fscale > 1e-3: # Pretty bright
+        return min(50, max_psf_rad)
+    # Not so bright
+    return min(30, max_psf_rad)
+
+
+def find_area_inds(x, y, shape, radius):
+    """Finds border indices for area in shape that is
+    defined by a circle of radius at x,y (floating point)
+    pixel coordinates
+    """
+    i = int(x)
+    i0 = i - radius
+    # Skip if further than radius outside image
+    if i0 >= shape[1]: return None
+    i1 = i + radius
+    if i1 <= 0: return None
+    i0 = max(i0, 0)
+    i1 = min(i1, shape[1])
+    j = int(y)
+    j0 = j - radius
+    if j0 >= shape[0]: return None
+    j1 = j + radius
+    if j1 <= 0: return None
+    j0 = max(j0, 0)
+    j1 = min(j1, shape[0])
+    return (i0, i1, j0, j1)
+
