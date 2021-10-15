@@ -390,9 +390,10 @@ class PsfPhot:
             w = interp_cube_ext(t, t0, w0)
             scale = np.interp(t, t0, scale0)
             bg += np.interp(t, t0, bg0)
-            if (self.pps.bg_smo is not False) and (n == niter-1):
-                bg[sel] = smo_spl_bg(self.sa_att[sel,0], bg[sel], smo_len=self.pps.bgfit_smo,
-                                     smo_lim=self.pps.bgfit_smo_lim)
+            if (self.pps.bg_smo is not False) and (n == niter-2):
+                smoothed_bg = smo_spl_bg(self.sa_att[sel,0], self.sa_bg[sel]+bg[sel], smo_len=self.pps.bg_smo,
+                                     smo_lim=self.pps.bg_smo_lim)
+                bg[sel] = smoothed_bg - self.sa_bg[sel]
                 bg_fit = -1
                 
             self.mess('Iter {:d} MAD sa: {:.2f} ppm'.format(n+1, mad(scale0)))

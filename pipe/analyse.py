@@ -167,8 +167,8 @@ def smo_spl_bg(BJD, BG, smo_len=10, smo_lim=1.2):
     points to smooth over.
     """
     ind = BG < smo_lim*np.median(BG)
-    tn = np.arange(smo_len, len(BJD)-smo_len, smo_len)
-    spl = LSQUnivariateSpline(BJD[ind], BG[ind], BJD[tn])
+    tn = np.arange(smo_len, len(BJD[ind])-smo_len, smo_len)
+    spl = LSQUnivariateSpline(BJD[ind], BG[ind], BJD[ind][tn])
     BG[ind] = spl(BJD[ind])
     return BG
 
