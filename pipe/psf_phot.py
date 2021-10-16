@@ -522,11 +522,11 @@ class PsfPhot:
             if (self.pps.bg_smo is not False) and (n == niter-2):
                 if self.pps.bg_smo_orb:
                     smoothed_bg = smo_bg_orb(self.im_att[sel, 0], self.im_bg[sel] + bg[sel], 
-                                             self.im_att[sel, 3], smo_len=self.pps.bg_smo*self.nexp,
+                                             self.im_att[sel, 3], smo_len=int(self.pps.bg_smo*self.nexp),
                                              smo_lim=self.pps.bg_smo_lim)
                 else:
                     smoothed_bg = smo_bg(self.im_att[sel, 0], self.im_bg[sel] + bg[sel],
-                                         smo_len=self.pps.bg_smo*self.nexp,
+                                         smo_len=int(self.pps.bg_smo*self.nexp),
                                          smo_lim=self.pps.bg_smo_lim)
                 bg[sel] = smoothed_bg - self.im_bg[sel]
                 bg_fit = -1
