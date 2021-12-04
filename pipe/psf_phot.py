@@ -1619,6 +1619,20 @@ class PsfPhot:
         self.mess(f' A: \"{file_psf0}\"')
         self.mess(f' B: \"{file_psf1}\"')
 
+        if self.pps.bg_psflib is None:
+            self.bg_psf = self.psf
+        else:
+            if isinstance(self.pps.bg_psflib, str):
+                file_psf = self.pps.bg_psflib
+            else:
+                file_psf = self.eigen_name(self.pps.bg_psflib)
+            if not os.path.isfile(file_psf):
+                raise Exception(f'BG PSF eigen library file \"{file_psf}\" not found')
+
+            self.mess('BG PSF eigen library defined: ')
+            self.mess(f' \"{file_psf}\"')
+            self.bg_psf = pickle.load(open(file_psf, 'rb'))[0]
+
 
     def pre_binary(self, integ_rad=15):
         """Special pre-processing for a binary. integ_rad is the integration 
