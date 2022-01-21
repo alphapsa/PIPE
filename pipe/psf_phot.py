@@ -713,8 +713,8 @@ class PsfPhot:
             if self.pps.mask_badpix:
                 self.sa_mask *= (mask==0)            
             self.mess('{:d} pixels masked in subarray'.format(np.sum(self.sa_mask[self.sa_apt]==0)))
-            if self.pps.file_im is not None:
-                self.define_im_mask()
+        if self.pps.file_im is not None:
+            self.define_im_mask()
 
 
     def define_im_mask(self):
