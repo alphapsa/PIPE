@@ -118,6 +118,7 @@ class PipeParam:
         self.save_psfmodel = False   # Save fitted model of PSF cube
         self.save_motion_mat = False # Save fitted motion blur matrix
         self.save_noise_cubes = False # Save estimated noise (raw/PSF/empiric) as fits cubes
+        self.save_astrometry = False # For binaries, saves text file with separation
         
         # Extraction parameters
         self.klip = 10           # Number of eigen components of PSF to use.

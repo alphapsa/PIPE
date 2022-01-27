@@ -1837,6 +1837,10 @@ class PsfPhot:
         self.binary_x1, self.binary_y1 = np.median(x), np.median(y)
         ds = (x**2+y**2)**.5
 
+        if self.pps.save_astrometry:
+            filename = os.path.join(self.pps.outdir, f'{self.pps.name}_{self.pps.visit}_separation.txt')
+            np.savetxt(filename, ds)
+
         self.separation = np.median(ds)
         self.mess('Astrometry: separation = {:.3f} +/- {:.3f} pix'.format(
                 self.separation, np.std(ds)/len(ds)**.5))
