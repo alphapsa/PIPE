@@ -1838,7 +1838,7 @@ class PsfPhot:
         ds = (x**2+y**2)**.5
 
         self.separation = np.median(ds)
-        print('Astrometry: separation = {:.3f} +/- {:.3f} pix'.format(
+        self.mess('Astrometry: separation = {:.3f} +/- {:.3f} pix'.format(
                 self.separation, np.std(ds)/len(ds)**.5))
         
         dx, dy = rotate_position(self.binary_x1, self.binary_y1, self.sa_att[:,3])
