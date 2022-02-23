@@ -237,6 +237,23 @@ def clean_cube2D(data_cube, mask, apt):
     return clean_cube
 
     
+def cti_corr_fun(t, cti_t0, cti_scale, cti_expo, cti_lim):
+    """ Returns CTI correction function for epoch t (in MJD)
+    Typical values for constants (G. Olofsson):
+    cti_t0 = 58000.0
+    cti_scale = 0.0016
+    cti_expo = -0.65
+    cti_lim = 0.033
+    Correct for CTI by multiplying frame f0 [in ADU per exposure]
+    after bias subtraction with the cti_correction function, as in 
+        q = cti_corr_fun(...)
+        f1 = f0*q(f0)
+    where f1 is the frame corrected for CTI
+    """
+    cti0 = (t-cti_t0)*cti_scale/365.25
+    return lambda x: (1 + np.minimum(cti0*(np.maximum(x, 1)/1e4)**cti_expo, cti_lim))
+
+
 def check_mask(mask_cube, apt, clip=5, niter=3):
     """Checks the number of masked pixels for each mask of 
     an array, and de-selects those frames that deviate more
