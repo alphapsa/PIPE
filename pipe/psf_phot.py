@@ -42,7 +42,7 @@ from .reduce import (
     resample_attitude, resample_imagette_time, aperture, integrate_psf,
     interp_cube_ext, cube_apt, clean_cube2D, interp_cube, noise, psf_noise,
     pix_mat, make_maskcube, rough_contrast, check_low, check_val, check_pos,
-    check_motion, check_mask, empiric_noise
+    check_motion, check_mask, empiric_noise, cti_corr_fun
 )
 
 
@@ -68,6 +68,7 @@ class PsfPhot:
         self.starcat = None     # Star Catalogue object containing bg stars 
         self.mjd2bjd = None     # Defines a function to be used to convert
                                 # between MJD and BJD
+        self.cti_corr_fun = None # The CTI correction function, weakly epoch dependent   
         # ----------- Subarray variables
         self.sa_psf = None      # Default PSF normalised to subarray flux
         self.sa_debias = None   # Cube of DRP calibrated subarray frames
@@ -126,6 +127,7 @@ class PsfPhot:
 
         self.mad_sa = None
         self.mad_im = None
+
         # Read and initialise data from files
         self.read_data()
 
@@ -605,6 +607,13 @@ class PsfPhot:
             self.sa_bg /= nonlin_tweak(self.sa_bg)
             self.sa_dark /= nonlin_tweak(self.sa_dark)
         
+        if self.pps.cti_corr:
+            self.mess('CTI correction [sa]')
+            norm = self.pps.gain*self.sa_hdr['NEXP']    # Convert from e- to to ADU
+            self.sa_debias *= self.cti_corr_fun(self.sa_debias/norm)
+            self.sa_bg *= self.cti_corr_fun(self.sa_bg/norm)
+            self.sa_dark *= self.cti_corr_fun(self.sa_dark/norm)
+
         self.sa_sub = (self.sa_debias - self.sa_bg[:, None, None])*self.sa_apt
         if self.pps.darksub:
             self.sa_sub -= self.sa_dark
@@ -666,6 +675,8 @@ class PsfPhot:
         self.sa_debias, self.sa_mjd, self.sa_hdr, self.sa_tab = \
             datacube(self.pps.file_sa_cal, self.pps.sa_range)
         
+        if self.pps.cti_corr:
+            self.update_cti_fun(np.mean(self.sa_mjd))
         
         self.sa_apt = (np.max(self.sa_debias, axis=0) > 0)
         sa_cor, _sa_mjd, _sa_hdr, _sa_tab = \
@@ -860,6 +871,9 @@ class PsfPhot:
         """Applies a non-linearity function and the gain to convert from
         detected ADU to number of electrons.
         """
+        if self.pps.cti_corr:
+            self.mess('Correcting for CTI [im]')
+            im_adu *= self.cti_corr_fun(im_adu/self.im_hdr['NEXP'])
         self.mess('Converting ADU to electrons [im]...')
         if self.pps.non_lin:
             self.mess(' Using non-linearity correction [im]...')
@@ -871,12 +885,15 @@ class PsfPhot:
         if self.pps.non_lin_tweak:
             # This tweak should eventually be put into the regular 
             # non-linear correction curve
-            self.mess('Tweaking non-linear correction for low exposures [sa]')
+            self.mess('Tweaking non-linear correction for low exposures [im]')
             def nonlin_tweak(f):
                 ret = (f/self.im_hdr['NEXP']-100)/(self.pps.nl_lim-100)*self.pps.nl_100 + 1 - self.pps.nl_100
                 ret[f/self.im_hdr['NEXP'] > self.pps.nl_lim] = 1
                 return ret
             im_e /= nonlin_tweak(im_e)
+
+
+
         return im_e
 
 
@@ -1262,7 +1279,18 @@ class PsfPhot:
         f, e = psf_phot_cube(self.im_sub, im_noise, psf_cube, bg, apt)
         return f, e
         
-    
+
+    def update_cti_fun(self, epoch_mjd):
+        """Initialises the CTI correction function at the given epoch (in MJD)
+        according to the defined PIPE parameters (pps)
+        """
+        self.cti_corr_fun = cti_corr_fun(t=epoch_mjd,
+                                         cti_t0=self.pps.cti_t0,
+                                         cti_scale=self.pps.cti_scale,
+                                         cti_expo=self.pps.cti_expo,
+                                         cti_lim=self.pps.cti_lim)
+
+
     def apt_cube_sa(self, radius):
         """Returns a cube of binary apertures of radius centred according to 
         previously determined PSF offsets in each frame.

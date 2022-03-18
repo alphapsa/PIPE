@@ -97,6 +97,14 @@ class PipeParam:
                                    # and imagettes
         self.nl_100 = 0.04        # Non-linearity tweak correction at 100 electrons
         self.nl_lim = 800       # Non-linearity tweak until this number of electrons
+
+        # Charge transfer inefficiency parameters
+        self.cti_corr = True       # True if CTI is to be corrected
+        self.cti_t0 = 58800.0      # Zero epoch for CTI detoriation
+        self.cti_scale = 0.0016    # CTI scaling paramter
+        self.cti_expo = -0.65      # CTI exponent
+        self.cti_lim = 0.0333      # Limiting CTI
+
         self.empiric_noise = False # Use noise estimated from PSF residuals in time
                                    # series rather than assuming photon statistics
         # Binary parameters
