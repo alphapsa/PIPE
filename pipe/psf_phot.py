@@ -302,7 +302,8 @@ class PsfPhot:
         self.make_star_bg_cube_sa(skip=skip_bg_stars)
         self.update_smearing_sa()
         self.update_sub_sa()
-        self.psf_cent_sa()
+        if not self.pps.robust_centre_binary:
+            self.psf_cent_sa()
         self.make_star_bg_cube_sa(skip=skip_bg_stars)
         self.update_sub_sa()
 
@@ -320,7 +321,8 @@ class PsfPhot:
             self.make_star_bg_cube_im(skip=skip_bg_stars)
             self.update_smearing_im()
             self.update_sub_im()
-            self.psf_cent_im()
+            if not self.pps.robust_centre_binary:
+                self.psf_cent_im()
             self.make_star_bg_cube_im(skip=skip_bg_stars)
             self.update_sub_im()
 
