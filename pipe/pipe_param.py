@@ -117,6 +117,9 @@ class PipeParam:
                                      # ratio will be read from starcat
         self.fix_flux2 = True        # Fix the flux of the secondary in a
                                      # second iteration to improve stability
+        self.robust_centre_binary = False # In case of a close bright companion, 
+                                          # a more robust but potentially less precise
+                                          # centring algorithm can be attempted
         # Save switches
         self.save_mask_cube = True   # Save mask used to fitler out bad
                                      # data (as fits file)

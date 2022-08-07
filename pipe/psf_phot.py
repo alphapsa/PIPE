@@ -1693,7 +1693,11 @@ class PsfPhot:
             klip = min(klip, len(self.eigen_psf))
         sel = self.sa_cent_sel
         
-        self.centre_binary(self.psf)
+        if self.pps.robust_centre_binary:
+            self.robust_centre_binary(self.psf)
+        else:
+            self.centre_binary(self.psf)
+
         fix_flux2 = None
         for n in range(self.pps.sigma_clip_niter):
             self.mess('--- Iteration binary sa {:d}/{:d}'.format(n+1, self.pps.sigma_clip_niter))
@@ -1884,6 +1888,26 @@ class PsfPhot:
                                           norm0, norm1, 
                                           self.sa_mask_cube,
                                           nthreads=self.pps.nthreads))        
+
+
+    def robust_centre_binary(self, psf):
+        xc0 = np.median(self.sa_xc)*np.ones_like(self.sa_xc)
+        yc0 = np.median(self.sa_yc)*np.ones_like(self.sa_yc)
+        dx, dy = self.starcat.rotate_entry(self.pps.secondary, self.sa_att[:,3])
+
+        norm0 = self.sa_norm0
+        norm1 = self.pps.init_flux_ratio*self.sa_norm1
+        
+        self.mess('Compute robust subarray PSF centers... (multi {:d} threads)'.format(self.pps.nthreads))
+        self.sa_xc0, self.sa_yc0, _sc0, self.sa_xc1, self.sa_yc1, _sc1 = (
+                multi_cent_binary_psf_fix(psf,
+                                          self.sa_sub, self.sa_noise,
+                                          xc0, yc0, 
+                                          dx, dy,
+                                          norm0, norm1, 
+                                          self.sa_mask_cube,
+                                          nthreads=self.pps.nthreads))        
+
 
 
     def save_binary_eigen_sa(self, flag, flux0, flux1, bg, w0, w1):

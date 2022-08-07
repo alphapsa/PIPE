@@ -118,7 +118,7 @@ def binary_psf_fix(psf_spline, frame, noise, xc0, yc0, dx, dy,
     """Use PSF to simultaneously find the best centers of two stars in
     a frame, using an initial guessed position and a fixed separation (relpos).
     init_flux_ratio is star0/star1. Uses noise frame to clip bad pixels.
-    Ignore pixels outside of radius from each compnonent.
+    Ignore pixels outside of radius from each component.
     """
     from .reduce import coo_mat
     c_iter = 4
