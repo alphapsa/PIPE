@@ -282,11 +282,12 @@ def check_pos(xc, yc, clip=5, niter=3):
     from the median (iterates niter times). Returns
     the selected frames that were not deviating.
     """
+    min_std = 0.1 # To avoid pathological cases
     xc0, yc0 = np.median(xc), np.median(yc)
     r = ((xc-xc0)**2+(yc-yc0)**2)**0.5
     sel = np.ones(r.shape,dtype='?')
     for _n in range(niter):
-        s = np.std(r[sel])
+        s = max(min_std, np.std(r[sel]))
         sel = r < clip*s
     nbad = np.sum(sel==0)
     if nbad > 0:
