@@ -149,7 +149,9 @@ class PipeParam:
         self.smear_fact = 5.65       # Factor to multiply smear with to get the proper correction
         self.ccdsize = (1024,1024)   # Size of full detector in pixels. Used for
                                      # smearing correction.
-        
+        self.centre_off_x = -0.710   # Typical target location offset from frame centre [pixels]
+        self.centre_off_y = 1.055    # Typical target location offset from frame centre [pixels]
+
         self.sa_psfrad = 50      # Radius of area to subtract PSF in subarrays
         self.fitrad = 30         # Use this radius for fitting PSF
         self.im_psfrad = 23      # Radius of area where most of the PSF flux is

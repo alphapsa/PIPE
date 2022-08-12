@@ -82,7 +82,7 @@ def nonlinear(filename):
 
 def attitude(filename):
     """Reads the CHEOPS attitude file and puts the data into
-    a N-by-4 array with spacecraft mjd, ra, dev, and roll angle.
+    a N-by-4 array with spacecraft mjd, ra, dec, and roll angle.
     """
     with fits.open(filename) as hdul:
         outparam = np.zeros((hdul[1].header['NAXIS2'], 4))

@@ -278,7 +278,7 @@ class PsfPhot:
         the PSF to compute more accurate centers.
         """
         self.mess('--- Start pre-processing')
-        self.reduce_data_sa()
+        self.reduce_data_sa(centre=not self.pps.robust_centre_binary)
         self.sa_mask_cube = np.ones(self.sa_debias.shape, dtype='?')
         self.sa_mask_cube[:] = self.sa_mask
         
@@ -589,7 +589,7 @@ class PsfPhot:
         return  scale, bg, flux, err, sel, w
 
 
-    def reduce_data_sa(self, center=True):
+    def reduce_data_sa(self, centre=True):
         """Background subtracts the de-biased frames using a preliminary 
         background estimated from DRP products. The central 50% of each 
         framed is checked for a source, to filter out source-less frames.
@@ -627,14 +627,14 @@ class PsfPhot:
                                  mask=self.sa_mask[ind1:-ind1,ind2:-ind2])
         self.sa_cent_sel = sel
         self.mess('No centering source: {:d} / {:d} [sa]'.format(np.sum(sel==0), len(sel)))
-        if center:
+        if centre:
             xc, yc = self.photo_cent(self.sa_sub[sel])
             # Interpolate centers for frames without source
             self.sa_xc = np.interp(self.sa_att[:, 0], self.sa_att[sel, 0], xc)
             self.sa_yc = np.interp(self.sa_att[:, 0], self.sa_att[sel, 0], yc)
 
 
-    def reduce_data_im(self, center=True):
+    def reduce_data_im(self, centre=True):
         """Reduce imagettes by subtracting bias, applying a non-linear
         correction, dividing by a flat field and subtracting a preliminary 
         background interpolated from the subarray background estimate.
@@ -659,7 +659,7 @@ class PsfPhot:
         self.mess('No centering source: {:d} / {:d} [im]'.format(np.sum(sel==0), len(sel)))
 
 
-        if center:
+        if centre:
             xc, yc = self.photo_cent(self.im_sub[sel])
             # Interpolate centers for frames without source
             self.im_xc = np.interp(self.im_att[:,0], self.im_att[sel,0], xc)
@@ -693,8 +693,8 @@ class PsfPhot:
         bgoff = np.median(sa_cor[:,self.sa_ring95])
         self.sa_bg += bgoff
         self.sa_bgstars = np.zeros(self.sa_debias.shape)
-        self.sa_xc = 0.5*self.sa_debias.shape[-2]*np.ones(self.sa_debias.shape[0])
-        self.sa_yc = 0.5*self.sa_debias.shape[-1]*np.ones(self.sa_debias.shape[0])
+        self.sa_xc = 0.5*self.sa_debias.shape[-2]*np.ones(self.sa_debias.shape[0]) + self.pps.centre_off_x
+        self.sa_yc = 0.5*self.sa_debias.shape[-1]*np.ones(self.sa_debias.shape[0]) + self.pps.centre_off_y
 
         
     def read_imagettes(self, im_range=None):
@@ -709,8 +709,8 @@ class PsfPhot:
         self.im_off, self.im_sa_off = imagette_offset(self.pps.file_im)
         self.im_apt = (np.max(self.im_raw, axis=0) > 0)
         self.im_bgstars = np.zeros(self.im_raw.shape)
-        self.im_xc = 0.5*self.im_raw.shape[-2]
-        self.im_yc = 0.5*self.im_raw.shape[-1]
+        self.im_xc = 0.5*self.im_raw.shape[-2] + self.pps.centre_off_x
+        self.im_yc = 0.5*self.im_raw.shape[-1] + self.pps.centre_off_y
 
 
     def read_mask(self):

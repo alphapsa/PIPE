@@ -42,7 +42,7 @@ def resample_attitude(obs_mjd, exp_time, attitude):
         if rollin[n] > rollin[n-1]:
             rollin[n:] -= 360
     
-    dt = 0.5*exp_time/24/3600
+    dt = 0.5*exp_time/24/3600 # Half exposure time, in days
     t0 = attitude[0,0]
     t = attitude[:,0] - t0
     knots = t[3:-3:5]
