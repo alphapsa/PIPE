@@ -1702,6 +1702,8 @@ class PsfPhot:
                 self.robust_centre_binary(self.psf)
             else:
                 self.centre_binary(self.psf)
+        else:
+            self.define_binary_coordinates()
 
         fix_flux2 = None
         for n in range(self.pps.sigma_clip_niter):
@@ -1913,6 +1915,12 @@ class PsfPhot:
                                           self.sa_mask_cube,
                                           nthreads=self.pps.nthreads))        
 
+    def define_binary_coordinates(self):
+        self.sa_xc0 = self.sa_xc
+        self.sa_yc0 = self.sa_yc
+        dx, dy = self.starcat.rotate_entry(self.pps.secondary, self.sa_att[:,3])        
+        self.sa_xc1 = self.sa_xc0 + dx
+        self.sa_yc1 = self.sa_yc0 + dy
 
 
     def save_binary_eigen_sa(self, flag, flux0, flux1, bg, w0, w1):
