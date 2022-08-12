@@ -79,6 +79,10 @@ class PipeParam:
                                  # subarray times stamps
         self.bgstars = True      # True if background stars are to be subtracted
         self.limflux = 1e-3      # Inlude bgstars down to this fraction of the target flux
+        self.centre = True       # If True, find the centre of the star. Else, assume it is 
+                                 # at the centre of the frame (plus default offsets)
+        self.centre_off_x = -0.710   # Typical target location offset from frame centre [pixels]
+        self.centre_off_y = 1.055    # Typical target location offset from frame centre [pixels]
         self.mask_badpix = True  # True if bad pixels are to be masked
         self.smear_corr = True   # True if smearing is to be corrected
         self.smear_resid = False # True if residual smearing effect is to be removed
@@ -149,8 +153,6 @@ class PipeParam:
         self.smear_fact = 5.65       # Factor to multiply smear with to get the proper correction
         self.ccdsize = (1024,1024)   # Size of full detector in pixels. Used for
                                      # smearing correction.
-        self.centre_off_x = -0.710   # Typical target location offset from frame centre [pixels]
-        self.centre_off_y = 1.055    # Typical target location offset from frame centre [pixels]
 
         self.sa_psfrad = 50      # Radius of area to subtract PSF in subarrays
         self.fitrad = 30         # Use this radius for fitting PSF

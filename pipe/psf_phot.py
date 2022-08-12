@@ -302,7 +302,7 @@ class PsfPhot:
         self.make_star_bg_cube_sa(skip=skip_bg_stars)
         self.update_smearing_sa()
         self.update_sub_sa()
-        if not self.pps.robust_centre_binary:
+        if self.pps.centre and not self.pps.robust_centre_binary:
             self.psf_cent_sa()
         self.make_star_bg_cube_sa(skip=skip_bg_stars)
         self.update_sub_sa()
@@ -321,7 +321,7 @@ class PsfPhot:
             self.make_star_bg_cube_im(skip=skip_bg_stars)
             self.update_smearing_im()
             self.update_sub_im()
-            if not self.pps.robust_centre_binary:
+            if self.pps.centre and not self.pps.robust_centre_binary:
                 self.psf_cent_im()
             self.make_star_bg_cube_im(skip=skip_bg_stars)
             self.update_sub_im()
@@ -419,7 +419,8 @@ class PsfPhot:
                 self.sa_bgstars *= np.nanmedian(bgfact)
                 self.mess('Background factor: {:.3f} [sa]'.format(np.nanmedian(bgfact)))
                 self.update_sub_sa()
-                self.psf_cent_sa()
+                if self.pps.centre:
+                    self.psf_cent_sa()
                 
             self.sa_noise = (self.psf_noise_sa(psf_cube + self.sa_bg[:, None, None] +
                 bg[:, None, None] + 2*self.sa_bgstars + np.abs(self.sa_smear[:, None, :]) + 
@@ -545,7 +546,8 @@ class PsfPhot:
                 self.im_bgstars *= np.nanmedian(bgfact)
                 self.mess('Background factor: {:.3f} [im]'.format(np.nanmedian(bgfact)))
                 self.update_sub_im()
-                self.psf_cent_im()               
+                if self.pps.centre: 
+                    self.psf_cent_im()               
             self.im_noise = (self.psf_noise_im(psf_cube + self.im_bg[:, None, None] +
                 bg[:, None, None] + 2*self.im_bgstars + self.im_smear[:, None, :] +
                 np.abs(self.im_stat_res) + np.abs(self.im_dark))**2 +
@@ -1695,10 +1697,11 @@ class PsfPhot:
             klip = min(klip, len(self.eigen_psf))
         sel = self.sa_cent_sel
         
-        if self.pps.robust_centre_binary:
-            self.robust_centre_binary(self.psf)
-        else:
-            self.centre_binary(self.psf)
+        if self.pps.centre:
+            if self.pps.robust_centre_binary:
+                self.robust_centre_binary(self.psf)
+            else:
+                self.centre_binary(self.psf)
 
         fix_flux2 = None
         for n in range(self.pps.sigma_clip_niter):
