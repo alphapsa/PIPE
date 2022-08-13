@@ -1870,6 +1870,7 @@ class PsfPhot:
                                       xc1, yc1,
                                       norm0, norm1,
                                       self.sa_mask_cube,
+                                      radius=self.pps.centfit,
                                       nthreads=self.pps.nthreads))        
             
         x, y = derotate_position(sa_xc1-sa_xc0, sa_yc1-sa_yc0, self.sa_att[:,3])
@@ -1894,6 +1895,7 @@ class PsfPhot:
                                           dx, dy,
                                           norm0, norm1, 
                                           self.sa_mask_cube,
+                                          radius=self.pps.centfit,
                                           nthreads=self.pps.nthreads))        
 
 
@@ -1913,6 +1915,7 @@ class PsfPhot:
                                           dx, dy,
                                           norm0, norm1, 
                                           self.sa_mask_cube,
+                                          radius=self.pps.centfit,
                                           nthreads=self.pps.nthreads))        
 
     def define_binary_coordinates(self):
