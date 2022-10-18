@@ -460,7 +460,7 @@ def pix_mat(datacube, noisecube, xc, yc, mask, fscale=None):
         mask0 = mask
     n0 = 0
     npix = np.sum(mask)
-    pix = np.zeros((totpix, 5))
+    pix = np.zeros((totpix, 4))
 
     if fscale is None:
         fscale = np.ones(len(datacube))

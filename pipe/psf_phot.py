@@ -1699,11 +1699,11 @@ class PsfPhot:
         
         if self.pps.centre:
             if self.pps.robust_centre_binary:
-                self.robust_centre_binary(self.psf)
+                self.robust_centre_binary_sa(self.psf)
             else:
                 self.centre_binary(self.psf)
         else:
-            self.define_binary_coordinates()
+            self.define_binary_coordinates_sa()
 
         fix_flux2 = None
         for n in range(self.pps.sigma_clip_niter):
@@ -1783,10 +1783,14 @@ class PsfPhot:
         else:
             klip = min(klip, len(self.eigen_psf))
         sel = self.im_cent_sel
-        
-        self.im_xc0, self.im_yc0 = self.im_xc, self.im_yc
-        dx, dy = rotate_position(self.binary_x1, self.binary_y1, self.im_att[:,3])
-        self.im_xc1, self.im_yc1 = self.im_xc0 + dx, self.im_yc0 + dy
+
+        if self.pps.centre:
+            if self.pps.robust_centre_binary:
+                self.robust_centre_binary_im(self.psf)
+            else:
+                self.centre_binary(self.psf)
+        else:
+            self.define_binary_coordinates_im()
         fix_flux2 = None
        
         for n in range(self.pps.sigma_clip_niter):
@@ -1856,13 +1860,13 @@ class PsfPhot:
         return psf_cube0, psf_cube1,  bg + self.im_bg
 
 
-    def centre_binary(self, psf):
+    def centre_binary_sa(self, psf):
         dx, dy = self.starcat.rotate_entry(self.pps.secondary, self.sa_att[:,3])
         xc1, yc1 = self.sa_xc + dx, self.sa_yc + dy
         norm0 = self.sa_norm0
         norm1 = self.pps.init_flux_ratio*self.sa_norm1
         
-        self.mess('Compute subarray PSF centers... (multi {:d} threads)'.format(self.pps.nthreads))
+        self.mess('Compute subarray PSF centers [sa]... (multi {:d} threads)'.format(self.pps.nthreads))
         sa_xc0, sa_yc0, _sc0, sa_xc1, sa_yc1, _sc1 = (
                 multi_cent_binary_psf(psf,
                                       self.sa_sub, self.sa_noise,
@@ -1882,12 +1886,12 @@ class PsfPhot:
             np.savetxt(filename, ds)
 
         self.separation = np.median(ds)
-        self.mess('Astrometry: separation = {:.3f} +/- {:.3f} pix'.format(
+        self.mess('Astrometry: separation [sa] = {:.3f} +/- {:.3f} pix'.format(
                 self.separation, np.std(ds)/len(ds)**.5))
         
         dx, dy = rotate_position(self.binary_x1, self.binary_y1, self.sa_att[:,3])
         
-        self.mess('Compute subarray PSF centers... (multi {:d} threads)'.format(self.pps.nthreads))
+        self.mess('Compute subarray PSF centers [sa]... (multi {:d} threads)'.format(self.pps.nthreads))
         self.sa_xc0, self.sa_yc0, _sc0, self.sa_xc1, self.sa_yc1, _sc1 = (
                 multi_cent_binary_psf_fix(psf,
                                           self.sa_sub, self.sa_noise,
@@ -1899,7 +1903,49 @@ class PsfPhot:
                                           nthreads=self.pps.nthreads))        
 
 
-    def robust_centre_binary(self, psf):
+    def centre_binary_im(self, psf):
+        dx, dy = self.starcat.rotate_entry(self.pps.secondary, self.im_att[:,3])
+        xc1, yc1 = self.im_xc + dx, self.im_yc + dy
+        norm0 = self.im_norm0
+        norm1 = self.pps.init_flux_ratio*self.im_norm1
+        
+        self.mess('Compute subarray PSF centers [im]... (multi {:d} threads)'.format(self.pps.nthreads))
+        im_xc0, im_yc0, _sc0, im_xc1, im_yc1, _sc1 = (
+                multi_cent_binary_psf(psf,
+                                      self.im_sub, self.im_noise,
+                                      self.im_xc, self.im_yc,
+                                      xc1, yc1,
+                                      norm0, norm1,
+                                      self.im_mask_cube,
+                                      radius=self.pps.centfit,
+                                      nthreads=self.pps.nthreads))        
+            
+        x, y = derotate_position(im_xc1-im_xc0, im_yc1-im_yc0, self.im_att[:,3])
+        self.binary_x1, self.binary_y1 = np.median(x), np.median(y)
+        ds = (x**2+y**2)**.5
+
+        if self.pps.save_astrometry:
+            filename = os.path.join(self.pps.outdir, f'{self.pps.name}_{self.pps.visit}_separation.txt')
+            np.savetxt(filename, ds)
+
+        self.separation = np.median(ds)
+        self.mess('Astrometry [im]: separation = {:.3f} +/- {:.3f} pix'.format(
+                self.separation, np.std(ds)/len(ds)**.5))
+        
+        dx, dy = rotate_position(self.binary_x1, self.binary_y1, self.im_att[:,3])
+        
+        self.mess('Compute subarray PSF centers [im]... (multi {:d} threads)'.format(self.pps.nthreads))
+        self.im_xc0, self.im_yc0, _sc0, self.im_xc1, self.im_yc1, _sc1 = (
+                multi_cent_binary_psf_fix(psf,
+                                          self.im_sub, self.im_noise,
+                                          self.im_xc, self.im_yc, 
+                                          dx, dy,
+                                          norm0, norm1, 
+                                          self.im_mask_cube,
+                                          radius=self.pps.centfit,
+                                          nthreads=self.pps.nthreads))    
+
+    def robust_centre_binary_sa(self, psf):
         xc0 = np.median(self.sa_xc)*np.ones_like(self.sa_xc)
         yc0 = np.median(self.sa_yc)*np.ones_like(self.sa_yc)
         dx, dy = self.starcat.rotate_entry(self.pps.secondary, self.sa_att[:,3])
@@ -1918,12 +1964,39 @@ class PsfPhot:
                                           radius=self.pps.centfit,
                                           nthreads=self.pps.nthreads))        
 
-    def define_binary_coordinates(self):
+    def robust_centre_binary_im(self, psf):
+        xc0 = np.median(self.im_xc)*np.ones_like(self.im_xc)
+        yc0 = np.median(self.im_yc)*np.ones_like(self.im_yc)
+        dx, dy = self.starcat.rotate_entry(self.pps.secondary, self.im_att[:,3])
+
+        norm0 = self.im_norm0
+        norm1 = self.pps.init_flux_ratio*self.im_norm1
+        
+        self.mess('Compute robust subarray PSF centers... (multi {:d} threads)'.format(self.pps.nthreads))
+        self.im_xc0, self.im_yc0, _sc0, self.im_xc1, self.im_yc1, _sc1 = (
+                multi_cent_binary_psf_fix(psf,
+                                          self.im_sub, self.im_noise,
+                                          xc0, yc0, 
+                                          dx, dy,
+                                          norm0, norm1, 
+                                          self.im_mask_cube,
+                                          radius=self.pps.centfit,
+                                          nthreads=self.pps.nthreads))        
+
+
+    def define_binary_coordinates_sa(self):
         self.sa_xc0 = self.sa_xc
         self.sa_yc0 = self.sa_yc
         dx, dy = self.starcat.rotate_entry(self.pps.secondary, self.sa_att[:,3])        
         self.sa_xc1 = self.sa_xc0 + dx
         self.sa_yc1 = self.sa_yc0 + dy
+
+    def define_binary_coordinates_im(self):
+        self.im_xc0 = self.im_xc
+        self.im_yc0 = self.im_yc
+        dx, dy = self.starcat.rotate_entry(self.pps.secondary, self.im_att[:,3])        
+        self.im_xc1 = self.im_xc0 + dx
+        self.im_yc1 = self.im_yc0 + dy
 
 
     def save_binary_eigen_sa(self, flag, flux0, flux1, bg, w0, w1):

@@ -12,16 +12,17 @@ Multi-threaded and calls the psf_worker module.
 import numpy as np
 import multiprocessing as mp
 import pickle
-from .psf_worker import make_psf
+from .psf_worker import make_psf_spline
 from .reduce import check_val, aperture
 from .analyse import find_orbits
+from .psf_model import map_coo, psf_model
 
 
 class MultiPSFMaker:
     """ Collects routines to compute the PSF from data contained in 
     the PsfPhot object pp. 
     """
-    def __init__(self, pp, outrad=70, max_threads=8):
+    def __init__(self, pp, outrad=100, max_threads=8):
         """ pp is a PsfPhot object
             outrad is the radius out to which the PSF will be defined
             max_thread is the maximum number of threads that will
@@ -31,8 +32,11 @@ class MultiPSFMaker:
         """
         self.pp = pp
         self.outrad = outrad
-        self.psf_spline = pp.psf
+        self.psf_mod = pp.psf
         self.sa_mask_org = self.pp.sa_mask.copy()
+        self.map_coo = map_coo()
+        self.margin = 1.02  # Used for mocking pixels in margin for a more robust fit
+        self.oversample = 3 # Mocked pixels per spline knot
         self.im = pp.pps.file_im is not None
         if self.im is False:
             self.pp.mess('MPM - WARNING: no imagettes defined')
@@ -77,7 +81,7 @@ class MultiPSFMaker:
         return [(orbs[n],orbs[n+1]) for n in range(len(orbs)-1)]        
         
             
-    def make_pixtab(self, clip=3, sa_range = None, limit=0.5):
+    def make_psf_pixtab(self, clip=3, sa_range = None, limit=0.5):
         """Produce pixel table from subarray frames and imagettes,
         filter out frames inappropriate for PSF derivation. We can afford
         to be picky and only accept good frames. If the number of skipped
@@ -107,6 +111,8 @@ class MultiPSFMaker:
                 im_sel[im_range[1]:] = 0
             pix_im = self.pp.make_pixtab_im(im_sel, self.pp.im_mask,
                                             self.im_flux[im_sel])
+            pix_sa[:,3] *= self.nexp**.5 # Devalue contribution from SA,
+                                         # makes IM more important for core PSF
             self.pp.mess('MPM - IM: {:.2f} Mpix'.format(len(pix_im)/1e6))
 
         if self.im:
@@ -115,7 +121,59 @@ class MultiPSFMaker:
             pixtab = pix_sa
         sel = np.abs(pixtab[:,0]) <= (self.outrad+1)
         sel *= np.abs(pixtab[:,1]) <= (self.outrad+1)
-        return pixtab[sel,:]
+        new_pixtab = self.add_border_pixels(pixtab[sel,:])
+        psf_pixtab = self.fill_psf_pixels(self.map_coo.pixtab_to_psf(new_pixtab))
+
+        return psf_pixtab
+
+
+    def add_border_pixels(self, pixtab, value=1e-7, error=5):
+        """In the pixel table, add pixels of value around the border
+        to fit a spline more graciously to the PSF.
+        error is the factor to multiply the median error for assigning
+        the new pixels.
+        """
+        outer = self.outrad*self.margin
+        x = np.linspace(-outer, outer, self.oversample*self.outrad)
+        xx, yy = np.meshgrid(x, x)
+        r = (xx**2+yy**2)**0.5
+        values = np.zeros_like(r)
+        errors = np.ones_like(r)*np.median(pixtab[:,3])*error
+        sel = (r <= outer)*(r >= (self.outrad-1))
+        values[sel] = value
+        num_new_pix = int(np.sum(sel))
+        new_pixtab = np.zeros(((pixtab.shape[0]+num_new_pix), pixtab.shape[1]))
+        new_pixtab[:pixtab.shape[0], :pixtab.shape[1]] = pixtab
+        new_pixtab[pixtab.shape[0]:, 0] = xx[sel]
+        new_pixtab[pixtab.shape[0]:, 1] = yy[sel]
+        new_pixtab[pixtab.shape[0]:, 2] = values[sel]
+        new_pixtab[pixtab.shape[0]:, 3] = errors[sel]
+        return new_pixtab
+        
+
+    def fill_psf_pixels(self, pixtab, error=5):
+        """In the pixel table, fill out the corners outside radius of the
+        PSF fitting areas with pixels of value zero. This because the 
+        LSQBivariateSpline does not accept non-rectangular support, while
+        the valid pixels in a subarray are confined to a circle.
+        error is the factor to multiply the median error for assigning
+        the new pixels.
+        """
+        outer = self.map_coo.for_map(self.outrad) * self.margin
+        x = np.linspace(-outer, outer, self.oversample*self.outrad)
+        xx, yy = np.meshgrid(x, x)
+        r = (xx**2+yy**2)**0.5
+        values = np.zeros_like(r)
+        errors = np.ones_like(r)*np.median(pixtab[:,3])*error
+        sel = self.map_coo.inv_map(r) >= self.outrad
+        num_new_pix = int(np.sum(sel))
+        new_pixtab = np.zeros(((pixtab.shape[0]+num_new_pix), pixtab.shape[1]))
+        new_pixtab[:pixtab.shape[0], :pixtab.shape[1]] = pixtab
+        new_pixtab[pixtab.shape[0]:, 0] = xx[sel]
+        new_pixtab[pixtab.shape[0]:, 1] = yy[sel]
+        new_pixtab[pixtab.shape[0]:, 2] = values[sel]
+        new_pixtab[pixtab.shape[0]:, 3] = errors[sel]
+        return new_pixtab
 
 
     def prod_psf(self, sa_ranges, lib_num):
@@ -133,13 +191,13 @@ class MultiPSFMaker:
             if pixtab is not None:
                 self.pixtabs.append(pixtab)
         
-        if self.psf_spline is None:
+        if self.psf_mod is None:
             self.pp.mess('MPM - PSF not found - defining new PSF...')
-            self.psf_spline = make_psf(self.pixtabs[0], self.outrad,
-                                                   polydeg=2, niter=1)
+            self.psf_mod = psf_model(make_psf_spline(self.pixtabs[0], self.outrad,
+                                                   polydeg=2, niter=1))
 
         self.pp.mess('MPM - Updating mask...')
-        badmask = update_sa_mask(self.psf_spline, self.pp.sa_sub[self.sa_sel],
+        badmask = update_sa_mask(self.psf_mod, self.pp.sa_sub[self.sa_sel],
                                  self.sa_flux[self.sa_sel],
                                  self.pp.sa_xc[self.sa_sel],
                                  self.pp.sa_yc[self.sa_sel],
@@ -152,7 +210,7 @@ class MultiPSFMaker:
 
         self.pp.mess(f'MPM - Making PSFs, {nthreads} threads')
         with mp.Pool(nthreads) as p:
-            psf_lib = p.starmap(make_psf, [(pixtab, self.outrad) for
+            psf_lib = p.starmap(make_psf_spline, [(pixtab, self.outrad) for
                                                  pixtab in self.pixtabs])
         self.save_psf(lib_num, psf_lib)
         self.pp.mess('MPM - Done!')
@@ -170,8 +228,9 @@ class MultiPSFMaker:
             pickle.dump(psf_lib, fp)
 
 
+ 
 
-def update_sa_mask(psf_spline, data, flux, xc, yc, outrad, bad_pix_frac=0.01):
+def update_sa_mask(psf_mod, data, flux, xc, yc, outrad, bad_pix_frac=0.01):
     """Derive a new bad pixel map, from statistics on PSF-subtracted subarrays.
     """
     low_quant = 0.2
@@ -179,7 +238,7 @@ def update_sa_mask(psf_spline, data, flux, xc, yc, outrad, bad_pix_frac=0.01):
     for n in range(len(data)):
         xcoo = np.arange(data.shape[1])-xc[n]
         ycoo = np.arange(data.shape[2])-yc[n]
-        res[n] = data[n]-flux[n]*psf_spline(ycoo,xcoo)
+        res[n] = data[n]-flux[n]*psf_mod(ycoo,xcoo)
     low = np.quantile(res, low_quant, axis=0)
     apt_out = aperture(low.shape, radius=outrad)
     bad_pix = (low > np.quantile(low[apt_out], 1-bad_pix_frac))*apt_out
