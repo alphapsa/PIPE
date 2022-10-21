@@ -15,6 +15,11 @@ import os
 import numpy as np
 from scipy import interpolate
 from astropy.io import fits
+from astropy.time import Time
+from astropy import units as u
+from astropy import constants as const
+from astropy.coordinates import SkyCoord, get_body_barycentric
+
 
 fits.Conf.use_memmap = False
 
@@ -29,8 +34,12 @@ def datacube(filename, frame_range=None):
         rawcube = np.array(hdul[1].data, dtype='f8')
         np.nan_to_num(rawcube, copy=False)
         hdr = hdul[0].header + hdul[1].header
-        mjd = hdul[2].data['MJD_TIME']
-        tab = hdul[2].data
+        if len(hdul) < 9: # Imagettes
+            mjd = hdul[2].data['MJD_TIME']
+            tab = hdul[2].data
+        else:  # Raw subarray file
+            mjd = hdul[9].data['MJD_TIME']
+            tab = hdul[9].data
     if frame_range is not None:
         return rawcube[frame_range[0]:frame_range[1]], \
                mjd[frame_range[0]:frame_range[1]], \
@@ -173,14 +182,17 @@ def thermFront_2(filename):
     return raw_param(filename, data_index=9, param_name='thermFront_2')
 
 
-def mjd2bjd(filename):
-    with fits.open(filename) as hdul:
-        mjd = np.asarray(hdul[2].data['MJD_TIME'])
-        bjd = np.asarray(hdul[2].data['BJD_TIME'])
-    ifun = interpolate.interp1d(mjd, bjd,
-                                bounds_error=False,
-                                fill_value='extrapolate')
-    return ifun
+def mjd2bjd(mjd, ra, dec):
+    """Compute BJD given MJD and direction. The observer is assumed
+    to be located at Earth centre, giving a maximum error of 23 ms.
+    mjd can be an array of MJD dates. ra and dec in degrees.
+    """
+    t = Time(mjd, format='mjd')
+    r = get_body_barycentric('earth', t)
+    n = SkyCoord(ra=ra*u.degree, dec=dec*u.degree, frame='icrs').cartesian
+    
+    bjd = mjd + 2400000.5 + (n.dot(r)/const.c).to_value(u.d)
+    return bjd
 
 
 def sub_image_indices(offset, size):

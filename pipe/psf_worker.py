@@ -27,7 +27,7 @@ def make_psf_spline(pixtab, radius=35, polydeg=3, niter=3):
         polydeg0 = polydeg
     for n in range(niter):
         print('{:s} --- Make PSF: iter {:d}/{:d}'.format(time.asctime(), n+1, niter))
-        psf_spline = interpolate.LSQBivariateSpline(x=pixtab[sel,0], 
+        psf_spline = LSQBivariateSpline(x=pixtab[sel,0], 
                                          y=pixtab[sel,1],
                                          z=pixtab[sel,2],
                                          w=w0/pixtab[sel,3],

@@ -309,7 +309,7 @@ class PsfPhot:
 
         # Reduce imagettes, if they exist
         if self.pps.file_im is not None:
-            self.reduce_data_im()
+            self.reduce_data_im(self.pps.centre)
             self.im_mask_cube = np.ones(self.im_raw.shape, dtype='?')
             self.im_mask_cube[:] = self.im_mask
 
@@ -711,8 +711,8 @@ class PsfPhot:
         self.im_off, self.im_sa_off = imagette_offset(self.pps.file_im)
         self.im_apt = (np.max(self.im_raw, axis=0) > 0)
         self.im_bgstars = np.zeros(self.im_raw.shape)
-        self.im_xc = 0.5*self.im_raw.shape[-2] + self.pps.centre_off_x
-        self.im_yc = 0.5*self.im_raw.shape[-1] + self.pps.centre_off_y
+        self.im_xc = 0.5*self.im_raw.shape[-2]*np.ones(self.im_raw.shape[0]) + self.pps.centre_off_x
+        self.im_yc = 0.5*self.im_raw.shape[-1]*np.ones(self.im_raw.shape[0]) + self.pps.centre_off_y
 
 
     def read_mask(self):
@@ -853,7 +853,7 @@ class PsfPhot:
         """
         self.mess('Defining MJD to BJD conversion...')
         if self.pps.mjd2bjd:
-            self.mjd2bjd = mjd2bjd(self.pps.file_sa_cal)
+            self.mjd2bjd = lambda mjd : mjd2bjd(mjd, self.sa_hdr['RA_TARG'], self.sa_hdr['DEC_TARG'])
         else: # Don't use barycentric conversion
             self.mjd2bjd = lambda mjd : mjd + 2400000.5
 
