@@ -127,10 +127,10 @@ class MultiPSFMaker:
         return psf_pixtab
 
 
-    def add_border_pixels(self, pixtab, value=1e-7, error=5):
+    def add_border_pixels(self, pixtab, value=1e-7, error_fact=5):
         """In the pixel table, add pixels of value around the border
         to fit a spline more graciously to the PSF.
-        error is the factor to multiply the median error for assigning
+        error_fact is the factor to multiply the median error for assigning
         the new pixels.
         """
         outer = self.outrad*self.margin
@@ -138,7 +138,7 @@ class MultiPSFMaker:
         xx, yy = np.meshgrid(x, x)
         r = (xx**2+yy**2)**0.5
         values = np.zeros_like(r)
-        errors = np.ones_like(r)*np.median(pixtab[:,3])*error
+        errors = np.ones_like(r)*np.median(pixtab[:,3])*error_fact
         sel = (r <= outer)*(r >= (self.outrad-1))
         values[sel] = value
         num_new_pix = int(np.sum(sel))
@@ -151,12 +151,12 @@ class MultiPSFMaker:
         return new_pixtab
         
 
-    def fill_psf_pixels(self, pixtab, error=5):
+    def fill_psf_pixels(self, pixtab, error_fact=5):
         """In the pixel table, fill out the corners outside radius of the
         PSF fitting areas with pixels of value zero. This because the 
         LSQBivariateSpline does not accept non-rectangular support, while
         the valid pixels in a subarray are confined to a circle.
-        error is the factor to multiply the median error for assigning
+        error_fact is the factor to multiply the median error for assigning
         the new pixels.
         """
         outer = self.map_coo.for_map(self.outrad) * self.margin
@@ -164,7 +164,7 @@ class MultiPSFMaker:
         xx, yy = np.meshgrid(x, x)
         r = (xx**2+yy**2)**0.5
         values = np.zeros_like(r)
-        errors = np.ones_like(r)*np.median(pixtab[:,3])*error
+        errors = np.ones_like(r)*np.median(pixtab[:,3])*error_fact
         sel = self.map_coo.inv_map(r) >= self.outrad
         num_new_pix = int(np.sum(sel))
         new_pixtab = np.zeros(((pixtab.shape[0]+num_new_pix), pixtab.shape[1]))
