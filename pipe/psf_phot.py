@@ -670,7 +670,7 @@ class PsfPhot:
     def read_sa_datacube(self):
         """Reads the de-biased, flat-fielded, and non-linearity corrected
         subarray data cube from data file. Uses DRP products to estimate
-        a prelininary background, corrected for a systematic background
+        a prelineary background, corrected for a systematic background
         bias. Initilise the source coordinates to be at the centre of
         the frame.
         """
@@ -1701,7 +1701,7 @@ class PsfPhot:
             if self.pps.robust_centre_binary:
                 self.robust_centre_binary_sa(self.psf)
             else:
-                self.centre_binary(self.psf)
+                self.centre_binary_sa(self.psf)
         else:
             self.define_binary_coordinates_sa()
 
@@ -1788,7 +1788,7 @@ class PsfPhot:
             if self.pps.robust_centre_binary:
                 self.robust_centre_binary_im(self.psf)
             else:
-                self.centre_binary(self.psf)
+                self.centre_binary_im(self.psf)
         else:
             self.define_binary_coordinates_im()
         fix_flux2 = None
