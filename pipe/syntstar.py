@@ -240,10 +240,17 @@ def refine_bg_model(starids, data_frame, noise, mask, model, psf_norm,
         psf_smear = MultiPSF(psf_mod=psf_mod, dxs=work_cat.dxs[star_id],
                              dys=work_cat.dys[star_id])
         psf_rad = psf_radii(work_cat.fscale[star_id])
+        dist = ((work_cat.x[star_id] - 0.5*data_frame.shape[1])**2 + 
+                (work_cat.y[star_id] - 0.5*data_frame.shape[0])**2)**0.5
+        if dist > 0.5*np.min(data_frame.shape):
+            fitrad = psf_rad
+        else:
+            fitrad = 25
+        
         fitstar_img, _bg, kmat, _sc, _w = psf_fit([psf_smear], fit_frame, noise,
                                                 mask, xc=work_cat.x[star_id],
                                                 yc=work_cat.y[star_id], 
-                                                fitrad=psf_rad, defrad=psf_rad,
+                                                fitrad=fitrad, defrad=psf_rad,
                                                 krn_scl=krn_scl, krn_rad=krn_rad,
                                                 bg_fit=-1)
         model += fitstar_img
