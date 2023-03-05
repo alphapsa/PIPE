@@ -12,6 +12,7 @@ Also contains routines that save data in fits or text formats.
 """
 
 import os
+import pickle
 import numpy as np
 from scipy import interpolate
 from astropy.io import fits
@@ -19,20 +20,24 @@ from astropy.time import Time
 from astropy import units as u
 from astropy import constants as const
 from astropy.coordinates import SkyCoord, get_body_barycentric
+from .pipe_statistics import sigma_clip
 
-
+# Copy data from fits-files into memory
 fits.Conf.use_memmap = False
 
-def datacube(filename, frame_range=None):
-    """Read CHEOPS datacube format, either subarray or imagettes.
+def raw_datacube(filename, frame_range=None):
+    """Read CHEOPS raw datacube format, either subarray or imagettes.
     Returns cube as numpy array where the first index is frame
     number, an array with the mjd for each frame, the header
     and an associated table with various pre-frame data
-    like e.g. the bias values.
+    contained in the fits-files, like e.g. the bias values.
+    Introduces np.nan values for array elements without data
+    (e.g. outside circular boundary).
     """
     with fits.open(filename) as hdul:
         rawcube = np.array(hdul[1].data, dtype='f8')
-        np.nan_to_num(rawcube, copy=False)
+#        np.nan_to_num(rawcube, copy=False)
+        rawcube[rawcube==0] = np.nan
         hdr = hdul[0].header + hdul[1].header
         if len(hdul) < 9: # Imagettes
             mjd = hdul[2].data['MJD_TIME']
@@ -41,10 +46,10 @@ def datacube(filename, frame_range=None):
             mjd = hdul[9].data['MJD_TIME']
             tab = hdul[9].data
     if frame_range is not None:
-        return rawcube[frame_range[0]:frame_range[1]], \
-               mjd[frame_range[0]:frame_range[1]], \
-               hdr, \
-               tab[frame_range[0]:frame_range[1]]
+        return (rawcube[frame_range[0]:frame_range[1]], 
+               mjd[frame_range[0]:frame_range[1]], 
+               hdr, 
+               tab[frame_range[0]:frame_range[1]])
     return rawcube, mjd, hdr, tab
 
 
@@ -65,15 +70,6 @@ def fits_cube(filename, level=0):
         cube = np.array(hdul[level].data, dtype='f8')
         hdr = hdul[level].header.copy()
     return cube, hdr
-
-
-def mask(filename):
-    """Reads a predefined mask saved as a fits file,
-        returns numpy array
-    """
-    with fits.open(filename) as hdul:
-        m = hdul[1].data
-    return m
 
 
 def nonlinear(filename):
@@ -119,16 +115,31 @@ def raw_param(filename, data_index, param_name):
     return ret_param
 
 
-def ron(filename):
-    """Reads the readout noise table entry from the CHEOPS
-    calibratared subarray cube file. Returns a single value (in ADU)
+def bias_ron_adu(filename, gain):
+    """Estimates bias and read-out noise (in electrons) from raw subarray file.
+    gain is in electrons per ADU
     """
-    return np.nanmedian(raw_param(filename, data_index=2, param_name='RON'))
+    with fits.open(filename) as hdul:
+        nexp = hdul[1].header['NEXP']
+        bias_pix = gain*np.array(hdul[2].data.flat, dtype='f8')
+        sel = sigma_clip(bias_pix, clip=3, niter=10)
+        bias = np.nanmedian(bias_pix[sel])/nexp
+        ron = np.nanstd(bias_pix[sel])/nexp**.5
+    return bias, ron
 
+def PSFs(psf_files, psf_ref_path):
+    """From a list of filenames of pickled PSF files, load them
+    and put the content into a list to be returned.
+    """
+    psflist = []
+    for filename in psf_files:
+        with open(os.path.join(psf_ref_path, filename), 'rb') as input: 
+            psflist.append(pickle.load(input))
+    return psflist        
 
 def gain(file_hk, file_gain):
     """Compute gain using HK parameters and the gain reference table
-    Returns gain in units of e/ADU
+    Returns gain in units of e/ADU sampled at times MJD
     """
     with fits.open(file_hk) as hdul:
         data = hdul[1].data
@@ -137,6 +148,7 @@ def gain(file_hk, file_gain):
         volt_vog = data['VOLT_FEE_VOG']
         volt_vss = data['VOLT_FEE_VSS']
         temp_ccd = data['VOLT_FEE_CCD']
+        mjd = data['MJD_TIME']
 
     with fits.open(file_gain) as hdul:
         data = hdul[1].data
@@ -173,13 +185,15 @@ def gain(file_hk, file_gain):
                                       (temp_ccd[:,
                                        None] + temp_off) ** exp_temp[None, :],
                                       axis=1))
-    return 1 / gain_vec
+
+    return mjd, 1 / gain_vec
 
 
 def thermFront_2(filename):
     """Reads frontTemp_2 sensor data from the CHEOPS raw file.
     """
     return raw_param(filename, data_index=9, param_name='thermFront_2')
+
 
 
 def mjd2bjd(mjd, ra, dec):
@@ -195,18 +209,18 @@ def mjd2bjd(mjd, ra, dec):
     return bjd
 
 
-def sub_image_indices(offset, size):
+def sub_image_indices(offset, shape):
     """Helper function that computes index ranges
-    given a 2D offset and a 2D size
+    given a 2D offset and a 2D shape
     """
     i0 = int(offset[0])
-    i1 = int(i0 + size[0])
+    i1 = int(i0 + shape[0])
     j0 = int(offset[1])
-    j1 = int(j0 + size[1])
+    j1 = int(j0 + shape[1])
     return i0, i1, j0, j1
 
 
-def flatfield(filename, Teff, offset, size):
+def flatfield(filename, Teff, offset, shape):
     """Reads the flatfield cube and interpolates the
     flatfield temperatures to the given temperature.
     The part of the detector that is returned is defined
@@ -217,38 +231,96 @@ def flatfield(filename, Teff, offset, size):
         T = T[hdul[2].data['DATA_TYPE'] == 'FLAT FIELD']
         idx = np.searchsorted(T, Teff, side="left")
         a = (Teff - T[idx]) / (T[idx + 1] - T[idx])
-        i0, i1, j0, j1 = sub_image_indices(offset, size)
+        i0, i1, j0, j1 = sub_image_indices(offset, shape)
         ff0 = hdul[1].data[idx, j0:j1, i0:i1]
         ff1 = hdul[1].data[idx + 1, j0:j1, i0:i1]
     return ff0 * (1 - a) + ff1 * a
 
 
-def dark(darkpath, mjd, offset, size):
-    """Traverses darkpath directory, looking for all
-    dark current files and picks the one closest in time
+def find_brack_ind(data, v):
+    """Finds indices n0 and n1 such that 
+    vec[n0] and vec[n1] are the closest bracketing
+    values in array data to value v. Values in data
+    need not be ordered. If value is outside range of 
+    values in array, then the index of the nearest 
+    array value is returned (twice).
     """
-    darkfiles = []
-    mjds = []
-    for root, dirs, files in os.walk(darkpath):
+    if np.min(data) < v:
+        diff = v-data
+        diff[diff<0] = np.nan
+        n0 = np.nanargmin(diff)
+    else: 
+        n0 = np.argmin(data)
+        return n0, n0
+    if np.max(data) > v:
+        diff = data-v
+        diff[diff<0] = np.nan
+        n1 = np.nanargmin(diff)
+    else: 
+        return n0, n0
+    return n0, n1
+
+
+def dark(darkpath, mjd, offset, shape):
+    """Traverses darkpath directory, looking for all
+    dark current files and interpolates the two 
+    closest in time.
+    """
+    darkfiles = []; mjds = []
+    for root, _dirs, files in os.walk(darkpath):
         for file in files:
-            if 'MCO_REP_DarkFrameFullArray' in file:
+            if 'REF_APP_DarkFrame' in file:
                 filename = os.path.join(root, file)
                 darkfiles.append(filename)
                 with fits.open(filename) as hdul:
-                    mjds.append(hdul[1].header['V_STRT_M'])
-
+                    mjds.append(Time(hdul[1].header['V_STRT_U'],
+                                scale='tt', format='isot').tt.mjd)
     if len(mjds) < 1:
         raise ValueError('Missing dark frame reference file. You may turn off '
                          'this feature by setting `pps.darksub = False`.')
+    
+    n0, n1 = find_brack_ind(np.array(mjds), mjd)
+    i0, i1, j0, j1 = sub_image_indices(offset, shape)
 
-    ind = np.argmin(np.abs(np.array(mjds) - mjd))
-    i0, i1, j0, j1 = sub_image_indices(offset, size)
+    with fits.open(darkfiles[n0]) as hdul:
+        dark0 = hdul[1].data[0, j0:j1, i0:i1].copy()
+        dark_err0 = hdul[1].data[1, j0:j1, i0:i1].copy()
+    if n0 == n1:
+        return dark0, dark_err0
+    with fits.open(darkfiles[n1]) as hdul:
+        dark1 = hdul[1].data[0, j0:j1, i0:i1].copy()
+        dark_err1 = hdul[1].data[1, j0:j1, i0:i1].copy()
 
-    with fits.open(darkfiles[ind]) as hdul:
-        dark = hdul[1].data[0, j0:j1, i0:i1]
-        dark_err = hdul[1].data[1, j0:j1, i0:i1]
+    t = (mjd-mjds[n0])/(mjds[n1]-mjds[n0])
+    dark = (1-t)*dark0 + t*dark1
+    dark_err = ((1-t)**2*dark_err0**2 + t**2*dark_err1**2)**0.5
     return dark, dark_err
-    # return np.zeros(size), np.zeros(size)
+
+
+def bad(badpath, mjd, offset, shape):
+    """Traverses badpath directory, looking for all
+    bad pixel map current files and selects the nearest
+    in time.
+    """
+    badfiles = []; mjds = []
+    for root, _dirs, files in os.walk(badpath):
+        for file in files:
+            if 'REF_APP_BadPixelMap' in file:
+                filename = os.path.join(root, file)
+                badfiles.append(filename)
+                with fits.open(filename) as hdul:
+                    mjds.append(Time(hdul[1].header['V_STRT_U'],
+                                scale='tt', format='isot').tt.mjd)
+    if len(mjds) < 1:
+        raise ValueError('Missing bad pixel map reference file. You may turn off '
+                         'this feature by setting `pps.mask_badpix = False`.')
+    
+    n = np.argmin(np.abs(mjd-np.array(mjds)))
+
+    i0, i1, j0, j1 = sub_image_indices(offset, shape)
+    with fits.open(badfiles[n]) as hdul:
+        bad = hdul[1].data[j0:j1, i0:i1].copy()
+    return bad
 
 
 def imagette_offset(filename, frame_range=None):
@@ -330,8 +402,6 @@ def save_txt(filename, t, flux, err, bg, roll, xc, yc):
     fmt = '%26.18e'
     np.savetxt(filename, X=X, fmt=fmt)
 
-
-import numpy as np
 
 def psf_filename(psf_ref_path, xc, yc, Teff, TF2, mjd, exptime, serial=None):
     """Produces a unique filename for for a PSF, encoding information about

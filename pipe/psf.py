@@ -8,14 +8,15 @@ Created on Fri Mar  6 14:26:19 2020
 Worker functions for multi_psf. Fit known PSFs to data.
 """
 
+from time import time # DEBUG
 import numpy as np
 from numpy.linalg import lstsq
 from scipy.optimize import nnls
 from .reduce import coo_mat
-from .spline_pca import psf_integral
+from .reduce import aperture
 
 def fit(psf_list, frame, noise, mask, xc, yc, 
-                fitrad=50, defrad=70, krn_scl=0.3,
+                fitrad=50, defrad=105, krn_scl=0.3,
                 krn_rad=3, bg_fit=0, non_negative=False):
     """Fit multiple PSF PCs simultaneousy to single frame. Fits
     for motion blur. fitrad is radius to fit PSF, defrad is radius
@@ -28,8 +29,8 @@ def fit(psf_list, frame, noise, mask, xc, yc,
         Array of PSF PC coefficients
     """
     xmat, ymat = coo_mat(frame.shape, xc, yc)
-    xcoo =  np.arange(frame.shape[0]) - xc
-    ycoo =  np.arange(frame.shape[1]) - yc
+    xcoo =  np.arange(frame.shape[1]) - xc
+    ycoo =  np.arange(frame.shape[0]) - yc
 
     apt = xmat**2 + ymat**2 <= fitrad**2
     def_apt = xmat**2 + ymat**2 <= defrad**2
@@ -38,30 +39,30 @@ def fit(psf_list, frame, noise, mask, xc, yc,
     nvec = noise[sel]
     Npix = len(fvec)
     
-    xkern = np.linspace(-krn_scl * krn_rad, krn_scl * krn_rad,
-                        2 * krn_rad + 1)
+    xkern = np.linspace(-krn_rad, krn_rad, 2*krn_rad + 1)
     xkmat, ykmat = np.meshgrid(xkern, xkern)
-    xk = xkmat.flatten()
-    yk = ykmat.flatten()
+    selk = (xkmat**2+ykmat**2) <= krn_rad**2
+    xk = krn_scl*xkmat[selk]
+    yk = krn_scl*ykmat[selk]
     Nk = len(xk)
     Npsf = len(psf_list)
-    
+
     if bg_fit == 0:
         psfs = np.zeros((Npix, Nk+1))
         psfs[:,Nk] = 1/nvec     # background
     else:
         psfs = np.zeros((Npix, Nk))
-    psf_norms = psf_integral(psf_list)
+    psf_norms = np.array([p.norm for p in psf_list])
 
     # First, derive offset matrix using only the first 
     # PSF
 
     for n in range(Nk):
-        psf = psf_list[0](ycoo-yk[n], xcoo-xk[n])
-        psfs[:,n] = psf[sel]/nvec
+        psf = psf_list[0]((xmat-xk[n])[sel], (ymat-yk[n])[sel], grid=False)
+        psfs[:,n] = psf/nvec
 
     kvec = _least_square(psfs, fvec/nvec, non_negative=non_negative)
-         
+
     # Use derived offset matrix to fit PSF list
 
     if bg_fit==0:
@@ -69,19 +70,19 @@ def fit(psf_list, frame, noise, mask, xc, yc,
         psfs[:, Npsf] = 1/nvec     # background
     else:
         psfs = np.zeros((Npix, Npsf))
-    
+
     for m in range(Npsf):
-        psf = np.zeros(frame.shape)
-        for n in range(Nk):
-            psf += kvec[n]*psf_list[m](ycoo-yk[n], xcoo-xk[n])
-        psfs[:,m] = psf[sel]/nvec
-                       
+       psf = np.zeros(np.sum(sel))
+       for n in range(Nk):
+           psf += kvec[n]*psf_list[m]((xmat-xk[n])[sel], (ymat-yk[n])[sel], grid=False)
+       psfs[:,m] = psf/nvec
+
     w = _least_square(psfs, fvec/nvec, non_negative=non_negative)
  
-    psf = np.zeros(sel.shape)
+    psf = np.zeros(frame.shape)
     for m in range(Npsf):
         for n in range(Nk):
-            psf += w[m]*kvec[n]*psf_list[m](ycoo-yk[n], xcoo-xk[n]) 
+            psf += w[m]*kvec[n]*psf_list[m](xcoo-xk[n], ycoo-yk[n]) 
     psf *= def_apt
 
     if bg_fit==0:
@@ -93,7 +94,9 @@ def fit(psf_list, frame, noise, mask, xc, yc,
         last_w = len(w)
         last_k = len(kvec)
         
-    kmat = np.reshape(kvec[:Nk], (len(xkern),len(xkern)))
+    kmat = np.zeros_like(xkmat)
+    kmat[selk] = kvec[:Nk]
+
     wsum = np.sum(psf_norms*w[:last_w])
     
     if np.isnan(wsum):
@@ -126,11 +129,11 @@ def fit_binary(psf_list0, psf_list1, frame, noise, mask, xc0, yc0, xc1, yc1,
     """
     
     xmat0, ymat0 = coo_mat(frame.shape, xc0, yc0)
-    xcoo0 =  np.arange(frame.shape[0]) - xc0
-    ycoo0 =  np.arange(frame.shape[1]) - yc0
+    xcoo0 =  np.arange(frame.shape[1]) - xc0
+    ycoo0 =  np.arange(frame.shape[0]) - yc0
     xmat1, ymat1 = coo_mat(frame.shape, xc1, yc1)
-    xcoo1 =  np.arange(frame.shape[0]) - xc1
-    ycoo1 =  np.arange(frame.shape[1]) - yc1
+    xcoo1 =  np.arange(frame.shape[1]) - xc1
+    ycoo1 =  np.arange(frame.shape[0]) - yc1
 
     notsel0 = xmat0**2+ymat0**2 > fitrad**2
     notsel1 = xmat1**2+ymat1**2 > fitrad**2
@@ -146,11 +149,11 @@ def fit_binary(psf_list0, psf_list1, frame, noise, mask, xc0, yc0, xc1, yc1,
     Npix = len(fvec)
     
     # Make offset grid
-    xkern = np.linspace(-krn_scl * krn_rad, krn_scl * krn_rad,
-                        2 * krn_rad + 1)
+    xkern = np.linspace(-krn_rad, krn_rad, 2*krn_rad + 1)
     xkmat, ykmat = np.meshgrid(xkern, xkern)
-    xk = xkmat.flatten()
-    yk = ykmat.flatten()
+    selk = (xkmat**2+ykmat**2) <= krn_rad**2
+    xk = krn_scl*xkmat[selk]
+    yk = krn_scl*ykmat[selk]
     Nk = len(xk)
     Npsf = len(psf_list0)
     
@@ -162,8 +165,8 @@ def fit_binary(psf_list0, psf_list1, frame, noise, mask, xc0, yc0, xc1, yc1,
     psfs[:, 2*Nk] = 1/nvec     # background
 
     for n in range(Nk):
-        psf0 = psf_list0[0](ycoo0-yk[n], xcoo0-xk[n])*apt0
-        psf1 = psf_list1[0](ycoo1-yk[n], xcoo1-xk[n])*apt1
+        psf0 = psf_list0[0](xcoo0-xk[n], ycoo0-yk[n])*apt0
+        psf1 = psf_list1[0](xcoo1-xk[n], ycoo1-yk[n])*apt1
         psfs[:, n] = psf0[aperture]/nvec
         psfs[:, n+Nk] = psf1[aperture]/nvec
 
@@ -180,8 +183,8 @@ def fit_binary(psf_list0, psf_list1, frame, noise, mask, xc0, yc0, xc1, yc1,
         psf0 = np.zeros(frame.shape)
         psf1 = np.zeros(frame.shape)
         for n in range(Nk):
-            psf0 += kvec[n]*psf_list0[m](ycoo0-yk[n], xcoo0-xk[n])*apt0
-            psf1 += kvec[n+Nk]*psf_list1[m](ycoo1-yk[n], xcoo1-xk[n])*apt1
+            psf0 += kvec[n]*psf_list0[m](xcoo0-xk[n], ycoo0-yk[n])*apt0
+            psf1 += kvec[n+Nk]*psf_list1[m](xcoo1-xk[n], ycoo1-yk[n])*apt1
         psfs[:, m] = psf0[aperture]/nvec    
         psfs[:, m+Npsf] = psf1[aperture]/nvec    
     
@@ -197,8 +200,8 @@ def fit_binary(psf_list0, psf_list1, frame, noise, mask, xc0, yc0, xc1, yc1,
         psf0 = np.zeros(frame.shape)
         psf1 = np.zeros(frame.shape)
         for m in range(Npsf):
-            psf0 += w[m]*psf_list0[m](ycoo0-yk[n], xcoo0-xk[n])*apt0
-            psf1 += w[m+Npsf]*psf_list1[m](ycoo1-yk[n], xcoo1-xk[n])*apt1
+            psf0 += w[m]*psf_list0[m](xcoo0-xk[n], ycoo0-yk[n])*apt0
+            psf1 += w[m+Npsf]*psf_list1[m](xcoo1-xk[n], ycoo1-yk[n])*apt1
         psfs[:, n] = psf0[aperture]/nvec
         psfs[:, n+Nk] = psf1[aperture]/nvec
 
@@ -209,13 +212,16 @@ def fit_binary(psf_list0, psf_list1, frame, noise, mask, xc0, yc0, xc1, yc1,
     psf1 = np.zeros(frame.shape)
     for m in range(Npsf):
         for n in range(Nk):
-            psf0 += kvec[n]*w[m]*psf_list0[m](ycoo0-yk[n], xcoo0-xk[n])*apt0
-            psf1 += kvec[n+Nk]*w[m+Npsf]*psf_list1[m](ycoo1-yk[n], xcoo1-xk[n])*apt1
+            psf0 += kvec[n]*w[m]*psf_list0[m](xcoo0-xk[n], ycoo0-yk[n])*apt0
+            psf1 += kvec[n+Nk]*w[m+Npsf]*psf_list1[m](xcoo1-xk[n], ycoo1-yk[n])*apt1
 
-    kmat0 = np.reshape(kvec[:Nk], (len(xkern),len(xkern)))
-    kmat1 = np.reshape(kvec[Nk:(2*Nk)], (len(xkern),len(xkern)))
-    psf_norms0 = psf_integral(psf_list0)
-    psf_norms1 = psf_integral(psf_list1)
+    kmat0 = np.zeros_like(xkmat)
+    kmat1 = np.zeros_like(xkmat)
+    kmat0[selk] = kvec[:Nk]
+    kmat1[selk] = kvec[Nk:(2*Nk)]
+
+    psf_norms0 = np.array([p.norm for p in psf_list0])
+    psf_norms1 = np.array([p.norm for p in psf_list1])
     wsum0 = np.sum(psf_norms0*w[:Npsf])
     wsum1 = np.sum(psf_norms1*w[Npsf:-1])
     sc0 = np.sum(kvec[:Nk])*wsum0

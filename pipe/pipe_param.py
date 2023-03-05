@@ -51,6 +51,7 @@ class PipeParam:
         self.Teff = None         # Effective temperature of target, used for 
                                  # finding appropriate flat field.
         self.gain = None         # gain in electrons/ADU; estimated if not defined
+        self.gain_median = True  # Use the median gain of visit for all frames
         self.ron = None          # read-out noise in RMS electrons per
                                  # readout and pixel; estimated if not defined
         self.bias = None         # bias in ADU; estimated if not defined
@@ -59,48 +60,51 @@ class PipeParam:
         self.mjd2bjd = True      # Use barycentric conversion from MJD to BJD
         self.binary = False      # If the binary code branch is to be used, requires
                                  # special parameters to be defined, see below
-        self.psflib = None       # Name of library of PSF eigen functions to be used
-                                 # (located in calibpath/psf_lib/)
-        self.bg_psflib = None    # Name of library of PSF eigen functions to be used
-                                 # for background stars (located in calibpath/psf_lib/)
-                                 # If None, then psflib is used.
-        self.psf_rad = 70        # PSF lib defined out to this integer radius
+        self.psf_score = None    # Limits how good the PSF match needs to be
+                                 # (lower score = stricter match)
+        self.psf_min_num = 5     # Minimum number of PSFs used, irrespective of score
+        self.psf_rad = 200       # PSF lib defined out to this integer radius
         self.nthreads = os.cpu_count()-1    # Number of threads to use; defaulted to 
                                             # the number of system virtual cores - 1
-        self.bg_fit = 0          # Simultaneous background to be fit with PSF:
-                                 # -1: no, 0: constant, 1: bilinear plane, 2: parabolic 
-        self.bg_smo = False      # Smooth background estimate with spline using this 
-                                 # resolution in data points 
-        self.bg_smo_lim = 1.2    # Only smooth for BG points below this times median
-        self.bg_smo_orb = False  # If true, coming combine BG of different orbits
-        self.drp_bg_corr = True  # True if bg subtraction from DRP should be corrected
-        self.resample_im_times = True   # True if the time stamps for imagettes should
-                                        # be corrected (SOC bug) by interpolating
-                                 # subarray times stamps
+        self.bg_fit = -1         # Simultaneous background to be fit with PSF:
+                                 # -1: no, 0: constant, [TBD: 1: bilinear plane, 2: parabolic]
+        self.resample_im_times = False   # True if the time stamps for imagettes should
+                                         # be corrected (early SOC bug) by interpolating
+                                         # subarray times stamps. Not relevant for data
+                                         # reprocessed 2021 or later.
         self.bgstars = True      # True if background stars are to be subtracted
-        self.limflux = 1e-3      # Inlude bgstars down to this fraction of the target flux
+        self.limflux = 1e-5      # Include bgstars down to this fraction of the target flux
+        self.fit_bgstars = True  # True if background stars are to be fitted
+        self.lim_fit = 0.01      # Attempt to fit for position and photometry for bgstars down
+                                 # to this fraction of target flux
+        self.bg_star_inrad = 5   # Minimum distance from targets for bg stars to be fitted
+        self.blur_res = 0.3      # For bg stars, produce rotational blur to this pixel resolution
         self.centre = True       # If True, find the centre of the star. Else, assume it is 
                                  # at the centre of the frame (plus default offsets)
+        self.source_window_radius = 30  # Radius of window [in pixels] centered on centre of
+                                        # frame where source must be found for frame to not
+                                        # be flagged as source-less
         self.centre_off_x = -0.710   # Typical target location offset from frame centre [pixels]
         self.centre_off_y = 1.055    # Typical target location offset from frame centre [pixels]
         self.mask_badpix = True  # True if bad pixels are to be masked
+        self.mask_level = 2      # Mask out all before: 0 none, -2 dead pixels, -1 half-dead pixels, 
+                                 # 3 telegraphic pixels, 2 saturated pixels, 1 hot pixels
         self.smear_corr = True   # True if smearing is to be corrected
-        self.smear_resid = False # True if residual smearing effect is to be removed
-        self.remove_static = True    # True if median of residual cube ("static") is to 
-                                     # be subtracted (gets rid of dark current)
-        self.static_psf_rad = True   # Limit static subtraction to area defined by PSF
+        self.smear_resid_sa = False  # True if residual smearing effect is to be removed
+        self.smear_resid_im = False # True if residual smearing effect is to be removed
+        self.remove_static = False  # True if median of residual cube ("static") is to 
+                                    # be subtracted (gets rid of dark current)
+        self.pos_static = True   # Only subtract positive static image
         self.flatfield = True    # True if flat field correction should be applied
         self.darksub = True      # True if dark current is to be subtracted (from
                                  # Dark folder in calibpath)
-        self.dark_level = 2.0    # [e-/second] Only correct for dark current pixels
-                                 # above this level (to avoid low-level influence from
-                                 # residual stars in dark) 
-        self.non_lin = True      # Apply non-linear correction to imagettes if True
-        self.non_lin_tweak = False # Apply empirical tweak to non-linear correction
-                                   # at low exposure levels, for both subarrays
-                                   # and imagettes
-        self.nl_100 = 0.04        # Non-linearity tweak correction at 100 electrons
-        self.nl_lim = 800       # Non-linearity tweak until this number of electrons
+        self.dark_min_snr = 15   # Minimum signal-to-noise ratio for dark estimate to include pixel.
+                                 # This is set to avoid adding noise when subtracting dark.
+        self.dark_min_level = 3.0 # [e-/second] Only correct for dark current pixels
+                                  # above this level (to avoid low-level influence from
+                                  # residual stars in dark)
+        self.mask_bad_dark = True # Identify pixels with poor dark correction and mask them
+        self.non_lin = True       # Apply non-linear correction if True
 
         # Charge transfer inefficiency parameters
         self.cti_corr = True       # True if CTI is to be corrected
@@ -131,8 +135,10 @@ class PipeParam:
         self.save_bg_cube = False    # Save cube of residuals with bg stars (as fits file)
         self.save_static = False     # Save derived static image as fits file
         self.save_psfmodel = False   # Save fitted model of PSF cube
+        self.save_psf_list = True    # Save list of filenames of PSFs used
         self.save_motion_mat = False # Save fitted motion blur matrix
         self.save_noise_cubes = False # Save estimated noise (raw/PSF/empiric) as fits cubes
+        self.save_gain = False       # Save  estimated gain table (with columns MJD, gain)
         self.save_astrometry = False # For binaries, saves text file with separation
         
         # Extraction parameters
@@ -140,24 +146,27 @@ class PipeParam:
         self.sigma_clip = 15     # The residual/std-factor for masking
         self.sigma_clip_niter = 2    # Number of iterations used for sigma-clipping
         self.empiric_noise = False   # Use noise determined by statistics on residuals
-        self.empiric_sigma_clip = 5  # The sigma-clipping to use when using empiric noise
+        self.empiric_sigma_clip = 4  # The sigma-clipping to use with empiric noise
         self.block_psf_level = 1e-4  # The level above which the PSF is blocked when
                                      # doing vertical smear correction
-        self.centfit = 23        # Fit PSF inside this radius for centroid
-        self.fluxfit = 40        # Fit PSF inside this radius for flux
+        self.centfit_rad = 23    # Find target and fit centroid inside this radius
+        self.centfit_subrad = 3  # Compute flux centroid with this radius in deconvolved image
         self.motion_step = 0.3   # Step in fitting for motion blur
         self.motion_nsteps = 3   # Number of steps in each direction when
                                  # fitting for motion blur
         self.non_neg_lsq = False # Use non-negative least-square for motion blur
         
         self.smear_fact = 5.65       # Factor to multiply smear with to get the proper correction
+        self.smear_const = 2e-7      # Calibrated from 55 Cnc observations (0.1 * exptime / ro_feq)
         self.ccdsize = (1024,1024)   # Size of full detector in pixels. Used for
                                      # smearing correction.
+        self.pixel_scale = 1.01      # CHEOPS pixel scale in arcsec/pix
 
-        self.sa_psfrad = 50      # Radius of area to subtract PSF in subarrays
-        self.fitrad = 30         # Use this radius for fitting PSF
-        self.im_psfrad = 23      # Radius of area where most of the PSF flux is
-                                 # Used for fitting and rough aperture photometry                                 
+        self.sa_psfrad = 105      # Radius of area to subtract PSF in subarrays
+        self.fitrad = 30         # Fit PSF inside this radius for flux
+        self.normrad = 25        # Flux normalisation radius for PSF
+        # self.im_psfrad = 23      # Radius of area where most of the PSF flux is
+        #                          # Used for fitting and rough aperture photometry                                 
 
                                  
     def str_list(self):
@@ -199,19 +208,14 @@ class PipeParam:
             if warn:
                 print('Warning: \"{:s}\" file not found'.format(substrings[0]))
             return None
-        # These are data files used by PIPE. Some are DRP output files.
+
+        # These are data files used by PIPE.
         self.file_att = find_file(("SCI_RAW_Attitude", "attitude."))
-        self.file_sa_cor = find_file(("SCI_COR_SubArray", "bgsub."))
-        self.file_sa_cal = find_file(("SCI_CAL_SubArray", "biassub."))
         self.file_sa_raw = find_file(("RAW_SubArray", "raw."))
         self.file_hk = find_file(("SCI_RAW_HkExtended",))
         self.file_im = find_file(("SCI_RAW_Imagette", "imagettes."))
-        self.file_mask = find_file(("PIP_COR_PixelFlagMapSubArray", "mask."))
         self.file_starcat = find_file(("EXT_PRE_StarCatalogue", "starcat."))
-        self.file_lc_default = find_file(("SCI_COR_Lightcurve-DEFAULT",))
-        self.file_lc_optimal = find_file(("SCI_COR_Lightcurve-OPTIMAL",))
-        self.file_lc_rinf = find_file(("SCI_COR_Lightcurve-RINF",))
-        self.file_lc_rsup = find_file(("SCI_COR_Lightcurve-RSUP",))
+
         # Reference files
         self.file_gain = find_file(("REF_APP_GainCorrection", "gain."), 
                                    datapath=self.calibpath)

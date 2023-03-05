@@ -7,8 +7,8 @@ Created on Thu Oct 22 22:41:54 2020
 This module is separated from make_multi_psf so that the functions here can be
 called from multiple threads, as calling functions in the same module can
 cause all sorts of problems in python.
-
 """
+
 import numpy as np
 from scipy.interpolate import LSQBivariateSpline
 import time

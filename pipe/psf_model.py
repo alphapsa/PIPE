@@ -71,12 +71,26 @@ class psf_model():
     detector. This is to enable a non-linear resolution of the PSF
     spline, i.e. position of the knots, in detector coordinates.
     """
-    def __init__(self, psf_spl):
+    def __init__(self, psf_spl, norm_rad=50, sample=10):
         self.map = map_coo()
         self.psf_spl = psf_spl
-        
-    def __call__(self, x, y):
-        xx, yy = np.meshgrid(x, y)
-        psf_xx, psf_yy = self.map.to_psf(xx, yy)
-        return self.psf_spl(psf_yy, psf_xx, grid=False)
+        self.norm = self.norm_psf(radius=norm_rad, sample=sample)
+
+    def norm_psf(self, radius, sample):
+        x = np.linspace(-radius, radius, 2*radius*sample+1)
+        psf_frame = self.__call__(x, x, circular=True)
+        return np.sum(psf_frame)/sample**2
+
+    def __call__(self, x, y, grid=True, circular=False):
+        if grid:
+            xx, yy = np.meshgrid(x, y)
+        else:
+            xx, yy = x, y
+        px, py = self.map.to_psf(xx, yy)
+        if circular:
+            support = xx**2+yy**2 <= min(np.max(x**2), np.max(y**2))
+            return support*self.psf_spl(px, py, grid=False)
+        return self.psf_spl(px, py, grid=False)
     
+    def get_coeffs(self):
+        return self.psf_spl.get_coeffs()

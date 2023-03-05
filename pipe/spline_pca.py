@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-sigma_cl
 """
 Created on Thu Jun  4 22:17:04 2020
 
@@ -12,6 +12,7 @@ import numpy as np
 from .reduce import aperture
 from scipy.linalg import eigh
 from scipy.interpolate import BivariateSpline
+from .psf_model import psf_model
 import copy
 
 
@@ -167,18 +168,8 @@ def phot(psf_fun, radius=50, sample=10):
     """Integrate PSF spline function over circular region
     defined by radius
     """
-    x = np.linspace(-radius, radius, 2*radius*sample+1)
-    frame = np.zeros((len(x), len(x)))
-    apt = aperture(frame.shape, radius * sample)
-    return np.sum(psf_fun(x,x)*apt)/sample**2
-
-
-def phot_abs(psf_fun, radius=50, sample=10):
-    """Integrate absolute value of PSF spline function
-    over circular region defined by radius
-    """
-    abs_psf_fun = lambda x,y: np.abs(psf_fun(x,y))
-    return phot(psf_fun=abs_psf_fun, radius=radius, sample=sample)
+    pm = psf_model(psf_fun, norm_rad=radius, sample=sample)
+    return pm.norm
 
 
 if __name__=='__main__':
