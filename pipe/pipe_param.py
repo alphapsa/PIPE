@@ -60,9 +60,9 @@ class PipeParam:
         self.mjd2bjd = True      # Use barycentric conversion from MJD to BJD
         self.binary = False      # If the binary code branch is to be used, requires
                                  # special parameters to be defined, see below
-        self.psf_score = None    # Limits how good the PSF match needs to be
+        self.psf_score = 400     # Limits how good the PSF match needs to be
                                  # (lower score = stricter match)
-        self.psf_min_num = 5     # Minimum number of PSFs used, irrespective of score
+        self.psf_min_num = 10    # Minimum number of PSFs used, irrespective of score
         self.psf_rad = 200       # PSF lib defined out to this integer radius
         self.psf_filenames_file = None  # If defined, the PSF will be defined from this
                                         # text file with PSF library files
