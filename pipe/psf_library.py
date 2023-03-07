@@ -26,7 +26,7 @@ import numpy as np
 # These are the default weights used by the metric, used to define
 # how well PSF parameters match. Format:
 # (xc, yc, Teff, thermFront_2, MJD, exptime)
-DEFAULT_WEIGHTS = (10.0, 70.0, 70.0, 1.0, 0.0, 0.0)
+DEFAULT_WEIGHTS = (1e2, 1e2, 4e3, 1e4, 0.0, 0.0)
 
 class PSF_Library:
     def __init__(self, psf_ref_path, weights=DEFAULT_WEIGHTS):
@@ -108,6 +108,7 @@ class PSF_Library:
         num = min(num, len(self.files))
         return sort_filenames[:num]
 
+
     def best_Teff_matches(self, Teff, min_num=5, score_lim=None):
         """Use default values for parameters from target, except for
         Teff, and return best matches. Used for finding suitable PSFs
@@ -117,6 +118,7 @@ class PSF_Library:
                          self.target_mjd, self.target_exptime)
         return self.best_matches(target_params=target_params,
                                  min_num=min_num, score_lim=score_lim)
+
 
     def filename(self, xc, yc, Teff, TF2, mjd, exptime, serial=None, outdir=None):
         """Produces a new unique filename for for a PSF, encoding information
@@ -191,6 +193,6 @@ def psf_metric(target_params, psf_params, weights=DEFAULT_WEIGHTS):
     wmjd = dmjd*weights[4]
     wexptime = (psf_params[5]/60)*weights[5]
 
-    return wxc**2 + wyc**2 + wTeff**2 + wTF2**2 + wmjd**2 + wexptime**2
+    return (wxc**2 + wyc**2 + wTeff**2 + wTF2**2 + wmjd**2 + wexptime**2)**.5
 
 
