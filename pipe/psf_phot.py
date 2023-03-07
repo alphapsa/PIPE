@@ -175,11 +175,11 @@ class PsfPhot:
         self.read_mask()
         self.read_darks()
         self.make_mjd2bjd_function()
-        self.define_psf_library(self.pps.filenames_file)
+        self.define_psf_library()
         self.read_starcat()
 
 
-    def define_psf_library(self, psf_filenames_file=None):
+    def define_psf_library(self):
         """PCA decomposes PSF files from psf_files list. If none is defined, 
         best matches from PSF library are found that match the parameters of
         the target in terms of position on detector, effective temperature of 
@@ -187,10 +187,10 @@ class PsfPhot:
         thermFront_2 sensor values during visit.
         """
 
-        if psf_filenames_file is None:
+        if self.pps.psf_filenames_file is None:
             psf_files = None
         else:
-            psf_files = read_psf_filenames(psf_filenames_file)
+            psf_files = read_psf_filenames(self.pps.psf_filenames_file)
 
         self.psf_lib = PSF_Library(os.path.join(self.pps.calibpath, 'psf_lib'))
 
