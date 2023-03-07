@@ -16,6 +16,7 @@ from .psf_worker import make_psf_spline
 from .reduce import check_val, aperture
 from .analyse import find_orbits
 from .psf_model import map_coo, psf_model
+from .pipe_statistics import sigma_clip
 
 
 class MultiPSFMaker:
@@ -208,7 +209,8 @@ class MultiPSFMaker:
                 self.pixtabs.append(pixtab)
                 n0, n1 = sa_ranges[n][0], sa_ranges[n][1]
                 MJD.append(np.mean(self.pp.sa_mjd[n0:n1]))
-                TF2.append(np.median(self.pp.sa_thermFront_2[n0:n1]))
+                ind = sigma_clip(self.pp.sa_thermFront_2[n0:n1])
+                TF2.append(np.mean(self.pp.sa_thermFront_2[n0:n1][ind]))
         
         if self.psf_mod is None:
             self.pp.mess('MPM - PSF not found - defining new PSF...')

@@ -28,6 +28,6 @@ def sigma_clip(data, clip=5, niter=5):
     for _n in range(niter):
         sigma = np.nanstd(data[ind])
         m = np.nanmedian(data[ind])
-        ind = np.abs(data-m) < clip*sigma
+        ind = np.abs(data-m) <= clip*sigma
     return ind
 

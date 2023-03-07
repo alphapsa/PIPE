@@ -137,7 +137,7 @@ class PSF_Library:
         if outdir is None:
             outdir = self.psf_ref_path
         dirname = os.path.join(outdir, '{:03d}x{:03d}'.format(xc, yc))
-        part1 = 'psf_{:05d}K_{:04.2f}C_{:5.0f}_{:04.1f}'.format(int(Teff), -TF2, mjd, exptime)
+        part1 = 'psf_{:05d}K_{:05.2f}C_{:5.0f}_{:04.1f}'.format(int(Teff), -TF2, mjd, exptime)
     
         os.makedirs(dirname, exist_ok=True)
     
@@ -154,7 +154,7 @@ def params_from_filename(filename):
     """Extracts parameters from filename of the format
      {xc}x{yc}/psf_{Teff}K_{TF2}K_{mjd}_{exptime}_{serial}.pkl
      012345678901234567890123456789012345678901234567890123456789
-    '291x830/psf_05690K_18.00K_59323_04.4_5.pkl' (as an example)
+    '291x830/psf_05690K_18.00C_59323_04.4_0005.pkl' (as an example)
     """
     xc  = int(filename[:3])
     yc  = int(filename[4:7])
