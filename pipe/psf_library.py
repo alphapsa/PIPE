@@ -133,13 +133,13 @@ class PSF_Library:
             (if not specified)
         """
         dirname = os.path.join(self.psf_ref_path, '{:03d}x{:03d}'.format(xc, yc))
-        part1 = 'psf_{:05d}K_{:04.1f}K_{:5.0f}_{:04.1f}'.format(int(Teff), -TF2, mjd, exptime)
+        part1 = 'psf_{:05d}K_{:04.2f}K_{:5.0f}_{:04.1f}'.format(int(Teff), -TF2, mjd, exptime)
     
         os.makedirs(dirname, exist_ok=True)
     
         if serial is None:
             for serial in range(self.serial_limit):
-                filename = os.path.join(dirname, part1 + f'_{serial}.pkl')
+                filename = os.path.join(dirname, part1 + '_{:04d}.pkl'.format(serial))
                 if not os.path.isfile(filename):
                     break
     
@@ -150,15 +150,16 @@ def params_from_filename(filename):
     """Extracts parameters from filename of the format
      {xc}x{yc}/psf_{Teff}K_{TF2}K_{mjd}_{exptime}_{serial}.pkl
      012345678901234567890123456789012345678901234567890123456789
-    '291x830/psf_05690K_18.0K_59323_04.4_5.pkl' (as an example)
+    '291x830/psf_05690K_18.00K_59323_04.4_5.pkl' (as an example)
     """
     xc  = int(filename[:3])
     yc  = int(filename[4:7])
     Teff = int(filename[12:17])
-    TF2 = -float(filename[19:23])
-    mjd = int(filename[25:30])
-    exptime = float(filename[31:35])
+    TF2 = -float(filename[19:24])
+    mjd = int(filename[26:31])
+    exptime = float(filename[32:36])
     return (xc, yc, Teff, TF2, mjd, exptime)
+
 
 def psf_diff(target_params, psf_params):
     dxc = ((target_params[0]-psf_params[0])/10.0)

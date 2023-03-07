@@ -34,6 +34,7 @@ def make_star_bg(shape, psf_ids, psfs, work_cats, skip=[0], krn_scl=0.3, krn_rad
 
 def refine_star_bg(starids, datacube, noisecube, maskcube, modelcube, psf_norm,
          work_cats, psf_ids, psfs, krn_scl=0.3, krn_rad=3, nthreads=1):
+    nthreads0 = int(max(round(nthreads/6), 1))
     in_params = []
     for n in range(len(work_cats)):
         in_params.append((starids, datacube[n], noisecube[n], maskcube[n],
@@ -41,7 +42,7 @@ def refine_star_bg(starids, datacube, noisecube, maskcube, modelcube, psf_norm,
                           psf_ids[:work_cats[n].catsize],
                           psfs, krn_scl, krn_rad))
 
-    with mp.Pool(nthreads) as p:
+    with mp.Pool(nthreads0) as p:
         refined_cats = p.starmap(refine_bg_model, in_params)
 
     return refined_cats
