@@ -64,6 +64,8 @@ class PipeParam:
                                  # (lower score = stricter match)
         self.psf_min_num = 5     # Minimum number of PSFs used, irrespective of score
         self.psf_rad = 200       # PSF lib defined out to this integer radius
+        self.psf_filenames_file = None  # If defined, the PSF will be defined from this
+                                        # text file with PSF library files
         self.nthreads = os.cpu_count()-1    # Number of threads to use; defaulted to 
                                             # the number of system virtual cores - 1
         self.bg_fit = -1         # Simultaneous background to be fit with PSF:
@@ -81,6 +83,9 @@ class PipeParam:
         self.blur_res = 0.3      # For bg stars, produce rotational blur to this pixel resolution
         self.centre = True       # If True, find the centre of the star. Else, assume it is 
                                  # at the centre of the frame (plus default offsets)
+        self.centre_psf_filename = None     # Filename of special PSF to be used for centroiding.
+                                            # Used to ensure consistent PSF deconvolution
+                                            # centroiding when producing PSFs
         self.source_window_radius = 30  # Radius of window [in pixels] centered on centre of
                                         # frame where source must be found for frame to not
                                         # be flagged as source-less

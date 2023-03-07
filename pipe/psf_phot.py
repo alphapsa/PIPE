@@ -42,7 +42,8 @@ from .read import (
     imagette_offset, raw_datacube as read_raw_datacube, attitude, gain as read_gain,
     bias_ron_adu, thermFront_2, mjd2bjd, nonlinear, flatfield, starcat,
     save_eigen_fits, save_binary_eigen_fits, sub_image_indices,
-    dark as read_dark, bad as read_bad, PSFs as load_PSFs
+    dark as read_dark, bad as read_bad, PSFs as load_PSFs, read_psf_filenames,
+    save_psf_filenames
 )
 from .spline_pca import SplinePCA
 from .syntstar import star_bg, rotate_position, derotate_position, psf_radii
@@ -174,17 +175,23 @@ class PsfPhot:
         self.read_mask()
         self.read_darks()
         self.make_mjd2bjd_function()
-        self.define_psf_library()
+        self.define_psf_library(self.pps.filenames_file)
         self.read_starcat()
 
 
-    def define_psf_library(self, psf_files=None):
+    def define_psf_library(self, psf_filenames_file=None):
         """PCA decomposes PSF files from psf_files list. If none is defined, 
         best matches from PSF library are found that match the parameters of
         the target in terms of position on detector, effective temperature of 
         target SED, proximity in time (MJD), exposure time, and range of 
         thermFront_2 sensor values during visit.
         """
+
+        if psf_filenames_file is None:
+            psf_files = None
+        else:
+            psf_files = read_psf_filenames(psf_filenames_file)
+
         self.psf_lib = PSF_Library(os.path.join(self.pps.calibpath, 'psf_lib'))
 
         ixoff = self.sa_hdr['X_WINOFF'] + int(self.sa_debias[0].shape[1]/2)
@@ -232,11 +239,18 @@ class PsfPhot:
         psflist = load_PSFs(psf_files, self.psf_lib.psf_ref_path)
         num_eigen = min(max(self.pps.klip, 10), len(psf_files))
 
+        if self.pps.save_psf_list:
+            save_psf_filenames(os.path.join(self.pps.outdir, 'psf_filenames.txt'), psf_files)
+
         self.mess('PCA decomposing PSFs into {:d} components'.format(num_eigen))
         spca = SplinePCA(psflist, num_eigen=num_eigen)
         eigen_splines = spca.get_eigen_spline_lib()
         self.eigen_psf = [psf_model(psf_spl) for psf_spl in eigen_splines]
         self.psf = self.eigen_psf[0]
+        if self.pps.centre_psf_filename is not None:
+            self.centre_psf = psf_model(load_PSFs([self.pps.centre_psf_filename], self.psf_lib.psf_ref_path)[0])
+        else:
+            self.centre_psf = self.psf
 
 
     def pre_process(self):
@@ -1286,7 +1300,7 @@ class PsfPhot:
         self.mess('Compute centroids  (multi {:d} threads)'.format(self.pps.nthreads))
         xi = int(data_cube.shape[2]*0.5)
         yi = int(data_cube.shape[1]*0.5)
-        xc, yc = multi_cent_deconvolve(self.psf,
+        xc, yc = multi_cent_deconvolve(self.centre_psf,
                                   data_cube,
                                   xi, yi,
                                   radius=self.pps.centfit_rad,
@@ -1305,7 +1319,7 @@ class PsfPhot:
         Returns refined x, y pixel coordinates of centre.     
         """
         self.mess('Refine centers with PSF fit  (multi {:d} threads)'.format(self.pps.nthreads))
-        xc, yc = multi_cent_psf(self.psf,
+        xc, yc = multi_cent_psf(self.centre_psf,
                                 data_cube,
                                 noise_cube,
                                 init_xc, init_yc,
@@ -1324,7 +1338,7 @@ class PsfPhot:
         """
         xi = int(datacube[0].shape[1]*0.5)
         yi = int(datacube[0].shape[0]*0.5)
-        xc, yc = multi_cent_deconvolve(self.psf,
+        xc, yc = multi_cent_deconvolve(self.centre_psf,
                                   datacube,
                                   xi, yi,
                                   radius=self.pps.centfit_rad,
@@ -1346,7 +1360,7 @@ class PsfPhot:
         # Experimental
         xi = int(self.sa_sub[0].shape[1]*0.5)
         yi = int(self.sa_sub[0].shape[0]*0.5)
-        xc, yc = multi_cent_deconvolve(self.psf,
+        xc, yc = multi_cent_deconvolve(self.centre_psf,
                                   self.sa_sub[sel] - self.sa_stat_res,
                                   xi, yi,
                                   radius=15,
@@ -1377,7 +1391,7 @@ class PsfPhot:
         # Experimental
         xi = int(self.im_sub[0].shape[1]*0.5)
         yi = int(self.im_sub[0].shape[0]*0.5)
-        xc, yc = multi_cent_deconvolve(self.psf,
+        xc, yc = multi_cent_deconvolve(self.centre_psf,
                                   self.im_sub[sel] - self.im_stat_res,
                                   xi, yi,
                                   radius=15,
@@ -1924,7 +1938,7 @@ class PsfPhot:
         sel = self.sa_cent_sel
         
         if self.pps.centre:
-            self.centre_binary_deconv_sa(self.psf)
+            self.centre_binary_deconv_sa(self.centre_psf)
 #            if self.pps.robust_centre_binary:
 #                self.robust_centre_binary_sa(self.psf)
 #            else:
@@ -2012,7 +2026,7 @@ class PsfPhot:
         sel = self.im_cent_sel
 
         if self.pps.centre:
-            self.centre_binary_deconv_im(self.psf)
+            self.centre_binary_deconv_im(self.centre_psf)
 #            if self.pps.robust_centre_binary:
 #                self.robust_centre_binary_im(self.psf)
 #            else:

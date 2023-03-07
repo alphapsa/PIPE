@@ -133,7 +133,7 @@ class PSF_Library:
             (if not specified)
         """
         dirname = os.path.join(self.psf_ref_path, '{:03d}x{:03d}'.format(xc, yc))
-        part1 = 'psf_{:05d}K_{:04.2f}K_{:5.0f}_{:04.1f}'.format(int(Teff), -TF2, mjd, exptime)
+        part1 = 'psf_{:05d}K_{:04.2f}C_{:5.0f}_{:04.1f}'.format(int(Teff), -TF2, mjd, exptime)
     
         os.makedirs(dirname, exist_ok=True)
     
