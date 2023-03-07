@@ -26,7 +26,7 @@ import numpy as np
 # These are the default weights used by the metric, used to define
 # how well PSF parameters match. Format:
 # (xc, yc, Teff, thermFront_2, MJD, exptime)
-DEFAULT_WEIGHTS = (1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
+DEFAULT_WEIGHTS = (10.0, 70.0, 70.0, 1.0, 0.0, 0.0)
 
 class PSF_Library:
     def __init__(self, psf_ref_path, weights=DEFAULT_WEIGHTS):
@@ -118,7 +118,7 @@ class PSF_Library:
         return self.best_matches(target_params=target_params,
                                  min_num=min_num, score_lim=score_lim)
 
-    def filename(self, xc, yc, Teff, TF2, mjd, exptime, serial=None):
+    def filename(self, xc, yc, Teff, TF2, mjd, exptime, serial=None, outdir=None):
         """Produces a new unique filename for for a PSF, encoding information
         about the PSF in the filename as following:
         {psf_ref_path}/{xc}x{yc}/psf_{Teff}K_{TF2}K_{mjd}_{exptime}_{serial}.pkl
@@ -132,7 +132,9 @@ class PSF_Library:
         {serial} is a serial, the smallest number to make the filename unique
             (if not specified)
         """
-        dirname = os.path.join(self.psf_ref_path, '{:03d}x{:03d}'.format(xc, yc))
+        if outdir is None:
+            outdir = self.psf_ref_path
+        dirname = os.path.join(outdir, '{:03d}x{:03d}'.format(xc, yc))
         part1 = 'psf_{:05d}K_{:04.2f}C_{:5.0f}_{:04.1f}'.format(int(Teff), -TF2, mjd, exptime)
     
         os.makedirs(dirname, exist_ok=True)
@@ -162,8 +164,8 @@ def params_from_filename(filename):
 
 
 def psf_diff(target_params, psf_params):
-    dxc = ((target_params[0]-psf_params[0])/10.0)
-    dyc = ((target_params[1]-psf_params[1])/10.0)
+    dxc = target_params[0] - psf_params[0]
+    dyc = target_params[1] - psf_params[1]
     dTeff = (target_params[2]/psf_params[2] - 1)
     dTF2 = (target_params[3]/psf_params[3] - 1)
     dmjd = ((target_params[4]-psf_params[4])/1000.0)

@@ -26,7 +26,7 @@ def make_psf_spline(pixtab, radius=35, polydeg=3, niter=3):
     else:
         polydeg0 = polydeg
     for n in range(niter):
-        print('{:s} --- Make PSF: iter {:d}/{:d}'.format(time.asctime(), n+1, niter))
+#        print('{:s} --- Make PSF: iter {:d}/{:d}'.format(time.asctime(), n+1, niter))
         psf_spline = LSQBivariateSpline(x=pixtab[sel,0], 
                                          y=pixtab[sel,1],
                                          z=pixtab[sel,2],
@@ -35,8 +35,8 @@ def make_psf_spline(pixtab, radius=35, polydeg=3, niter=3):
                                          kx=polydeg0, ky=polydeg0)
         polydeg0=polydeg
         sel = filter_pix(psf_spline, pixtab)
-        print('    Masked: {:d} / {:d} pixels = {:.2f}%'.format(np.sum(sel==0),
-              len(sel), 100*np.sum(sel==0)/len(sel)))
+        # print('    Masked: {:d} / {:d} pixels = {:.2f}%'.format(np.sum(sel==0),
+        #       len(sel), 100*np.sum(sel==0)/len(sel)))
     return psf_spline
 
 

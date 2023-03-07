@@ -32,7 +32,7 @@ def deconvolve(psf_spline, cube, xi, yi, radius=30, subrad=3, nthreads=16):
     for m in range(len(cube)):
         inparam.append((psf_frame, cube[m], xi, yi, radius, subrad))
         
-    print('Using {:d} threads in centering pool'.format(nthreads))
+#    print('Using {:d} threads in centering pool'.format(nthreads))
     with mp.Pool(nthreads) as p:
         outparam = p.starmap(cent_deconvolve, inparam)
                 

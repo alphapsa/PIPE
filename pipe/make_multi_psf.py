@@ -185,7 +185,7 @@ class MultiPSFMaker:
         return new_pixtab
 
 
-    def prod_psf(self, sa_ranges):
+    def prod_psf(self, sa_ranges, outdir=None):
         """Produce a PSF for each subarray frame range in the sa_ranges
         list. Save pickled PSF list to file. 
         """
@@ -242,12 +242,13 @@ class MultiPSFMaker:
                       yc=self.pp.psf_lib.target_y,
                       Teff=self.pp.pps.Teff,
                       TF2=TF2, MJD=MJD,
-                      exptime=exptime)
+                      exptime=exptime,
+                      outdir=outdir)
         self.pp.mess('MPM - Done!')
         return psf_lib
 
 
-    def save_psf(self, psf_lib, xc, yc, Teff, TF2, MJD, exptime):
+    def save_psf(self, psf_lib, xc, yc, Teff, TF2, MJD, exptime, outdir=None):
         """Save a pickled file of the PSF list psf_lib. Lib_num is
         an arbitrary version number used in the filename.
         """
@@ -256,7 +257,9 @@ class MultiPSFMaker:
         for n in range(N):
             filename = self.pp.psf_lib.filename(xc=xc, yc=yc,
                                                 Teff=Teff, TF2=TF2[n],
-                                                mjd=MJD[n], exptime=exptime)
+                                                mjd=MJD[n],
+                                                exptime=exptime,
+                                                outdir=outdir)
             self.pp.mess(f'Saving PSF {n}/{N} to \'{filename}\'')        
             with open(filename, 'wb') as fp:
                 pickle.dump(psf_lib[n], fp)

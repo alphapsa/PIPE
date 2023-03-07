@@ -5,7 +5,7 @@ Created on Fri Apr  3 00:27:24 2020
 @author: Alexis Brandeker, alexis@astro.su.se
 
 Master class PsfPhot of PIPE contains the data and routines to
-manipulate the and extract PSF photometry. Has separate but 
+manipulate and extract PSF photometry. Has separate but 
 similar paths for subarray [sa] and imagette [im] manipulation,
 and also for entangled binaries where two componens are fit 
 simultaneously.

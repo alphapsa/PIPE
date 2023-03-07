@@ -65,7 +65,7 @@ class PipeControl():
             self.pp.process_eigen_im()
     
     
-    def make_psf_lib(self, klip=None):
+    def make_psf_lib(self, outdir=None):
         """Produces a library of PSFs. The data series is divided into orbits, 
         with one PSF determined per orbit.
         """
@@ -73,9 +73,7 @@ class PipeControl():
             self.process_eigen()
         pm = MultiPSFMaker(self.pp, max_threads=self.pps.nthreads)
         sa_ranges = pm.find_ranges()
-        if klip is None:
-            klip = len(sa_ranges)
-        return pm.prod_psf(sa_ranges[:klip])
+        return pm.prod_psf(sa_ranges, outdir=outdir)
     
     
     def load_drp(self, desc='DEFAULT'):
