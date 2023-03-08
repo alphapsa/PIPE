@@ -463,50 +463,15 @@ class PsfPhot:
                 self.make_star_bg_cube_sa()
 
         flux, err = self.psf_phot_sa(self.sa_psf_cube, self.pps.fitrad)
+        flags = self.save_results_sa(scale, err)
 
-        if self.pps.save_resid_cube:
-            self.save_residuals_sa('')
-
-        if self.pps.save_bg_cube:
-            self.save_bg_sa('')
-        
-        flagCenter = (self.filter_pos(self.sa_xc, self.sa_yc) == 0)
-        flagBadPix = (self.filter_bad_masks(self.sa_mask_cube, self.sa_apt) == 0)
-        flagFlux = (self.filter_flux(scale) == 0)
-        flagSource = (sel == 0)
-        flagBG = (self.filter_high_bg(self.sa_dbg + self.sa_bg, sel=(flagFlux==0)) == 0)
-        flag = np.zeros(flagCenter.shape, dtype='int8')
-        flag[:] = (1*flagCenter + 2*flagBadPix + 4*flagFlux +
-                    8*flagSource + 16*flagBG)
-        
-        self.save_eigen_sa(flag, scale, scale*err,
-                           self.sa_dbg + self.sa_bg, w)
-
-        if self.pps.save_mask_cube:
-            self.save_cube_fits('mask_cube_sa.fits', 
-                                np.array(self.sa_mask_cube, dtype='uint8'))
-
-        if self.pps.save_psfmodel:
-            self.save_cube_fits('psf_model_sa.fits', self.sa_psf_cube)
-
-        if self.pps.save_static:
-            self.save_cube_fits('static_sa.fits', self.sa_stat_res)
-
-        if self.pps.save_noise_cubes:
-            self.save_cube_fits('psf_noise_sa.fits', self.sa_noise)
-            self.save_cube_fits('raw_noise_sa.fits', self.raw_noise_sa())
-            res = self.compute_residuals_sa()
-            emp_noise_cube = empiric_noise(res, self.sa_xc, self.sa_yc, self.sa_dbg + self.sa_bg)
-            self.save_cube_fits('empiric_noise_sa.fits', emp_noise_cube)
-
-        sel = (flag==0)
+        sel = (flags==0)
         self.mad_sa = mad(scale)
         self.mess('MAD sa: {:.2f} ppm'.format(self.mad_sa))
         self.mess('MAD sa[flag==0]: {:.2f} ppm'.format(mad(scale[sel])))
 
         self.sa_flux = scale
         self.sa_sel = sel
-
 
         return  scale, dbg, flux, err, sel, w
 
@@ -579,10 +544,81 @@ class PsfPhot:
                 self.make_star_bg_cube_im()
 
         flux, err = self.psf_phot_im(self.im_psf_cube, self.pps.fitrad)
+        flags = self.save_results_im(scale, err)
+
+        sel = (flags==0)
+        self.mad_im = mad(scale)
+        self.mess('MAD im: {:.2f} ppm'.format(self.mad_im))
+        self.mess('MAD im[flag==0]: {:.2f} ppm'.format(mad(scale[sel])))
+        self.im_flux = scale
+        self.im_sel = sel
+
+        return  scale, dbg, flux, err, sel, w
+
+
+    def save_results_sa(self, scale, err):
+        """Save data from reduction/extraction processes according to 
+        switches of parameter file. Return status flags for extracted
+        photometry series.
+        """        
+        if self.pps.save_resid_cube:
+            self.save_residuals_sa('')
+
+        if self.pps.save_bg_cube:
+            self.save_bg_sa('')
+
+        if self.pps.save_bg_models:
+            self.save_bg_model_sa('')
+
+
+        flagCenter = (self.filter_pos(self.sa_xc, self.sa_yc) == 0)
+        flagBadPix = (self.filter_bad_masks(self.sa_mask_cube, self.sa_apt) == 0)
+        flagFlux = (self.filter_flux(scale) == 0)
+        flagSource = (sel == 0)
+        flagBG = (self.filter_high_bg(self.sa_dbg + self.sa_bg, sel=(flagFlux==0)) == 0)
+        flag = np.zeros(flagCenter.shape, dtype='int8')
+        flag[:] = (1*flagCenter + 2*flagBadPix + 4*flagFlux +
+                    8*flagSource + 16*flagBG)
+        
+        self.save_eigen_sa(flag, scale, scale*err,
+                           self.sa_dbg + self.sa_bg, w)
+
+        if self.pps.save_mask_cube:
+            self.save_cube_fits('mask_cube_sa.fits', 
+                                np.array(self.sa_mask_cube, dtype='uint8'))
+
+        if self.pps.save_psfmodel:
+            self.save_cube_fits('psf_model_sa.fits', self.sa_psf_cube)
+
+        if self.pps.save_static:
+            self.save_cube_fits('static_sa.fits', self.sa_stat_res)
+
+        if self.pps.save_noise_cubes:
+            self.save_cube_fits('psf_noise_sa.fits', self.sa_noise)
+            self.save_cube_fits('raw_noise_sa.fits', self.raw_noise_sa())
+            res = self.compute_residuals_sa()
+            emp_noise_cube = empiric_noise(res, self.sa_xc, self.sa_yc, self.sa_dbg + self.sa_bg)
+            self.save_cube_fits('empiric_noise_sa.fits', emp_noise_cube)
+
+        return flag
+
+
+
+    def save_results_im(self, scale, err):
+        """Save data from reduction/extraction processes according to 
+        switches of parameter file. Return status flags for extracted
+        photometry series.
+        """        
 
         if self.pps.save_resid_cube:
             self.save_residuals_im('')
-        
+
+        if self.pps.save_bg_cube:
+            self.save_bg_sa('')
+
+        if self.pps.save_bg_models:
+            self.save_bg_model_sa('')
+
         flagCenter = (self.filter_pos(self.im_xc, self.im_yc) == 0)
         flagBadPix = (self.filter_bad_masks(self.im_mask_cube, self.im_apt) == 0)
         flagFlux = (self.filter_flux(scale) == 0)
@@ -612,14 +648,8 @@ class PsfPhot:
             emp_noise_cube = empiric_noise(res, self.im_xc, self.im_yc, self.im_dbg + self.im_bg)
             self.save_cube_fits('empiric_noise_im.fits', emp_noise_cube)
 
-        sel = (flag==0)
-        self.mad_im = mad(scale)
-        self.mess('MAD im: {:.2f} ppm'.format(self.mad_im))
-        self.mess('MAD im[flag==0]: {:.2f} ppm'.format(mad(scale[sel])))
-        self.im_flux = scale
-        self.im_sel = sel
+        return flag
 
-        return  scale, dbg, flux, err, sel, w
 
 
     def estimate_level_sa(self, debiased, remove_stars=False, level=0.01, outer_median=True):
@@ -748,7 +778,7 @@ class PsfPhot:
         self.sa_smear = np.zeros(sa_raw.shape[0:3:2])
 
         # Initialise frame for static residual image
-        self.sa_stat_res = np.zeros_like(sa_raw[0])
+        self.sa_stat_res = 0 * sa_raw[0]
 
         # Mutliply with gain
         gain = self.gain_fun(self.sa_mjd) * np.ones_like(self.sa_mjd)
@@ -821,7 +851,7 @@ class PsfPhot:
         self.im_smear = np.zeros(im_raw.shape[0:3:2])
 
         # Initialise frame for static residual image
-        self.im_stat_res = np.zeros_like(im_raw[0])
+        self.im_stat_res = 0 * im_raw[0]
 
         # Mutliply with gain
         gain = self.gain_fun(self.im_mjd) * np.ones_like(self.im_mjd)
@@ -1178,8 +1208,8 @@ class PsfPhot:
         nanres = res.copy()
         apts = self.sa_apt
         nanres[:,apts==0] = np.nan
-        nanres[0,:,:] = 0   # Ensures not all values are nan
-        self.sa_stat_res = np.nanmedian(nanres, axis=0)
+        np.nan_to_num(nanres[0,:,:], copy=False)   # Ensures not all values are nan
+        self.sa_stat_res += np.nanmedian(nanres, axis=0)
         if self.pps.pos_static:
             self.sa_stat_res *= (self.sa_stat_res > 0)
 
@@ -1190,8 +1220,8 @@ class PsfPhot:
         nanres = res.copy()
         apts = self.im_apt
         nanres[:, apts==0] = np.nan
-        nanres[0,:,:] = 0   # Ensures not all values are nan
-        self.im_stat_res = np.nanmedian(nanres, axis=0)
+        np.nan_to_num(nanres[0,:,:], copy=False)   # Ensures not all values are nan
+        self.im_stat_res += np.nanmedian(nanres, axis=0)
         if self.pps.pos_static:
             self.im_stat_res *= (self.im_stat_res > 0)
 
@@ -1837,6 +1867,15 @@ class PsfPhot:
         res = self.compute_residuals_sa()
         self.save_cube_fits(prefix+'residuals_sa.fits', res)
 
+
+    def save_residuals_im(self, prefix):
+        """Subtract model from data and save as a fits cube
+        in the output directory.
+        """
+        res = self.compute_residuals_im()
+        self.save_cube_fits(prefix+'residuals_im.fits', res)    
+
+
     def save_bg_sa(self, prefix):
         """Subtract model (but not bg stars) from data and save 
         as a fits cube in the output directory.
@@ -1846,12 +1885,26 @@ class PsfPhot:
         self.save_cube_fits(prefix+'bgresiduals_sa.fits', res)
 
 
-    def save_residuals_im(self, prefix):
-        """Subtract model from data and save as a fits cube
-        in the output directory.
+    def save_bg_im(self, prefix):
+        """Subtract target PSF model (but not bg stars) from data and save 
+        as a fits cube in the output directory.
         """
         res = self.compute_residuals_im()
-        self.save_cube_fits(prefix+'residuals_im.fits', res)    
+        res += self.bg_model_im()
+        self.save_cube_fits(prefix+'bgresiduals_im.fits', res)
+
+
+    def save_bg_model_sa(self, prefix):
+        """Save bg model including bg stars, smear, and static
+        """
+        self.save_cube_fits(prefix+'bg_model_sa.fits', self.bg_model_sa())
+
+
+    def save_bg_model_im(self, prefix):
+        """Save bg model including bg stars, smear, and static
+        """
+        self.save_cube_fits(prefix+'bg_model_im.fits', self.bg_model_im())
+
 
     #----------- Methods for binary extractions below
 
