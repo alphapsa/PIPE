@@ -138,6 +138,7 @@ class PipeParam:
                                      # data (as fits file)
         self.save_resid_cube = True  # Save cube of residuals (as fits file)
         self.save_bg_cube = False    # Save cube of residuals with bg stars (as fits file)
+        self.save_bg_models = False  # Save model of background, incl stars, smearing, static
         self.save_static = False     # Save derived static image as fits file
         self.save_psfmodel = False   # Save fitted model of PSF cube
         self.save_psf_list = True    # Save list of filenames of PSFs used
