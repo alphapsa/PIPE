@@ -463,7 +463,7 @@ class PsfPhot:
                 self.make_star_bg_cube_sa()
 
         flux, err = self.psf_phot_sa(self.sa_psf_cube, self.pps.fitrad)
-        flags = self.save_results_sa(scale, err)
+        flags = self.save_results_sa(scale, err, sel)
 
         sel = (flags==0)
         self.mad_sa = mad(scale)
@@ -544,7 +544,7 @@ class PsfPhot:
                 self.make_star_bg_cube_im()
 
         flux, err = self.psf_phot_im(self.im_psf_cube, self.pps.fitrad)
-        flags = self.save_results_im(scale, err)
+        flags = self.save_results_im(scale, err, sel)
 
         sel = (flags==0)
         self.mad_im = mad(scale)
@@ -556,7 +556,7 @@ class PsfPhot:
         return  scale, dbg, flux, err, sel, w
 
 
-    def save_results_sa(self, scale, err):
+    def save_results_sa(self, scale, err, sel):
         """Save data from reduction/extraction processes according to 
         switches of parameter file. Return status flags for extracted
         photometry series.
@@ -604,7 +604,7 @@ class PsfPhot:
 
 
 
-    def save_results_im(self, scale, err):
+    def save_results_im(self, scale, err, sel):
         """Save data from reduction/extraction processes according to 
         switches of parameter file. Return status flags for extracted
         photometry series.
