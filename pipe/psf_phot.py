@@ -34,6 +34,7 @@ from .multi_cent import (
 from .multi_level import estimate as level_estimate
 from .level import ring_median as level_ring_median
 from .multi_psf import fit as multi_psf_fit, fit_binary as multi_psf_fit_binary
+from .optimal_params import TestParams, FindOptimal
 from .pipe_log import PipeLog
 from .pipe_statistics import mad, sigma_clip
 from .psf_model import psf_model
@@ -62,8 +63,11 @@ class PsfPhot:
     """
     def __init__(self, pipe_params):
         self.pps = pipe_params
-        
-        self.plog = PipeLog(self.pps.file_log, self.pps.plog_verbosity)
+        if self.pps.sa_optimise or self.pps.im_optimise:
+            plog_verbosity = 0
+        else:
+            plog_verbosity = self.pps.plog_verbosity
+        self.plog = PipeLog(self.pps.file_log, plog_verbosity)
         self.mess = self.plog.mess  # Shorthand
         
         self.plog.mess_list(self.pps.str_list()) # Save list of params to log
@@ -143,8 +147,8 @@ class PsfPhot:
         self.im_sel = None      # Selection of 'good' frames (flag==0)
         self.im_norm = None     # Median flux of imagette, used for background star scaling
 
-        self.mad_sa = None
-        self.mad_im = None
+        self.sa_mad = None
+        self.im_mad = None
 
         # Read and initialise data from files
         self.read_data()
@@ -368,7 +372,7 @@ class PsfPhot:
             bg_mod += self.sa_norm * self.sa_bgstars
         
         if self.pps.smear_corr:
-            bg_mod += self.sa_norm * self.sa_smear[:, None, :]
+            bg_mod += self.sa_norm * (self.sa_smear+self.sa_smear_resid)[:, None, :]
 
         if self.pps.remove_static:
             bg_mod += self.sa_stat_res
@@ -389,7 +393,7 @@ class PsfPhot:
             bg_mod += self.im_norm * self.im_bgstars
         
         if self.pps.smear_corr:
-            bg_mod += self.im_norm * self.im_smear[:, None, :]
+            bg_mod += self.im_norm * (self.im_smear+self.im_smear_resid)[:, None, :]
 
         if self.pps.remove_static:
             bg_mod += self.im_stat_res
@@ -410,68 +414,109 @@ class PsfPhot:
         integrated 'flux'.
         """
         self.mess('--- Start processing subarray data with eigen')
-        niter = self.pps.sigma_clip_niter
-        if self.pps.klip is None:
-            klip = len(self.eigen_psf)
-        else:
-            klip = min(self.pps.klip, len(self.eigen_psf))
-        sel = self.sa_cent_sel
+        self.sa_bg_refined = False
+        max_klip = len(self.eigen_psf)
+
+        def test_iter(params, niter=self.pps.sigma_clip_niter):
+            # Reset some state variables that are modified during iteration
+            sel = self.sa_cent_sel
+            dbg = np.zeros_like(self.sa_bg)
+            self.sa_dbg = np.zeros_like(self.sa_bg)
+            self.pps.remove_static = params.bStat
+            self.sa_stat_res *= 0
+            self.sa_smear_resid *= 0
+            self.sa_noise = self.raw_noise_sa()
+            self.sa_mask_cube[:] = self.sa_mask
+
+            for n in range(niter):
+                self.mess('--- Iteration sa {:d}/{:d}'.format(n+1, niter))
+                bg_mod = self.bg_model_sa()
+                psf_cube0, scale0, dbg0, w0 = multi_psf_fit(
+                                self.eigen_psf[:params.klip],
+                                self.sa_sub[sel] - bg_mod[sel],
+                                self.sa_noise[sel],
+                                self.sa_mask_cube[sel],
+                                self.sa_xc[sel], self.sa_yc[sel],
+                                fitrad=params.fitrad,
+                                defrad=self.pps.psf_rad,
+                                bg_fit=params.bBG,
+                                nthreads=self.pps.nthreads,
+                                non_negative=self.pps.non_neg_lsq)
+                # Interpolate over frames without source
+                t0 = self.sa_att[sel, 0]
+                t = self.sa_att[:, 0]
+                self.sa_psf_cube = interp_cube_ext(t, t0, psf_cube0*self.sa_apt) 
+                w = interp_cube_ext(t, t0, w0)
+                scale = np.interp(t, t0, scale0)
+                dbg += np.interp(t, t0, dbg0)
+                self.sa_dbg = dbg
+                    
+                self.mess('Iter {:d} MAD sa: {:.2f} ppm'.format(n+1, mad(scale0)))
+                self.make_mask_cube_sa()
+                self.sa_mask_cube[sel==0] = self.sa_mask
+                res = self.compute_residuals_sa()
         
-        dbg = np.zeros_like(self.sa_bg)
+                if self.pps.smear_resid_sa:
+                    self.update_smear_sa(res)
+                if params.bStat:
+                    self.compute_resid_stat_sa(res)
+                    
+                self.sa_noise = (self.psf_noise_sa(np.abs(self.sa_psf_cube) +
+                                                np.abs(self.bg_model_sa()) +
+                                                np.abs(self.sa_dark))**2 +
+                                self.sa_dark_err**2)**.5
 
-        for n in range(niter):
-            self.mess('--- Iteration sa {:d}/{:d}'.format(n+1, niter))
-            bg_mod = self.bg_model_sa()
-            psf_cube0, scale0, dbg0, w0 = multi_psf_fit(
-                            self.eigen_psf[:klip],
-                            self.sa_sub[sel] - bg_mod[sel],
-                            self.sa_noise[sel],
-                            self.sa_mask_cube[sel],
-                            self.sa_xc[sel], self.sa_yc[sel],
-                            fitrad=self.pps.fitrad,
-                            defrad=self.pps.psf_rad,
-                            bg_fit=self.pps.bg_fit,
-                            nthreads=self.pps.nthreads,
-                            non_negative=self.pps.non_neg_lsq)
-            # Interpolate over frames without source
-            t0 = self.sa_att[sel, 0]
-            t = self.sa_att[:, 0]
-            self.sa_psf_cube = interp_cube_ext(t, t0, psf_cube0*self.sa_apt) 
-            w = interp_cube_ext(t, t0, w0)
-            scale = np.interp(t, t0, scale0)
-            dbg += np.interp(t, t0, dbg0)
-            self.sa_dbg = dbg
-                
-            self.mess('Iter {:d} MAD sa: {:.2f} ppm'.format(n+1, mad(scale0)))
-            self.make_mask_cube_sa()
-            self.sa_mask_cube[sel==0] = self.sa_mask
-            res = self.compute_residuals_sa()
-    
-            if self.pps.remove_static:
-                self.compute_resid_stat_sa(res)
-            if self.pps.smear_resid_sa:
-                self.update_smear_sa(res)
-                
-            self.sa_noise = (self.psf_noise_sa(np.abs(self.sa_psf_cube) +
-                                               np.abs(self.bg_model_sa()) +
-                                               np.abs(self.sa_dark))**2 +
-                             self.sa_dark_err**2)**.5
+                if self.pps.bgstars and self.pps.fit_bgstars and self.sa_bg_refined is False:
+                    # Only refine once
+                    self.refine_star_bg_sa()
+                    self.make_star_bg_cube_sa()
+                    self.sa_bg_refined = True
 
-            if self.pps.bgstars and self.pps.fit_bgstars and n == 0:
-                # Only refince during the first iteration
-                self.refine_star_bg_sa()
-                self.make_star_bg_cube_sa()
+                flux, err = self.psf_phot_sa(self.sa_psf_cube, self.pps.fitrad)
+                flag = self.save_results_sa(scale, err, w, sel)
 
-        flux, err = self.psf_phot_sa(self.sa_psf_cube, self.pps.fitrad)
-        flags = self.save_results_sa(scale, err, w, sel)
+                sel = (flag==0)
+                self.sa_mad = mad(scale[sel])
+                self.mess('MAD sa: {:.2f} ppm'.format(mad(scale)))
+                self.mess('MAD sa[flag==0]: {:.2f} ppm'.format(mad(scale[sel])))
+                self.sa_flux = scale
+                self.sa_sel = sel
+ 
+                return scale, dbg, flux, err, sel, w
 
-        sel = (flags==0)
-        self.mad_sa = mad(scale)
-        self.mess('MAD sa: {:.2f} ppm'.format(self.mad_sa))
-        self.mess('MAD sa[flag==0]: {:.2f} ppm'.format(mad(scale[sel])))
+        klip = min(self.pps.klip, max_klip)
+        nominal = TestParams(klip=klip, fitrad=self.pps.fitrad, bBG=self.pps.bg_fit,
+                                bDark=self.pps.darksub, bStat=self.pps.remove_static)
 
-        self.sa_flux = scale
-        self.sa_sel = sel
+        if self.pps.sa_optimise is False:
+            scale, dbg, flux, err, sel, w = test_iter(nominal)
+        else:
+            self.mess('Start optimising [sa]', 0)            
+            fo = FindOptimal(self.pps.sa_test_klips, self.pps.sa_test_fitrads,
+                             self.pps.sa_test_BG, self.pps.sa_test_Dark, self.pps.sa_test_Stat)
+            for n in range(self.pps.optimise_restarts):
+                nominal.mad = None
+                current_mad = None
+                fo.start(nominal, self.pps.optimise_tree_iter)
+                while True:
+                    testparams = fo.next_test(current_mad)
+                    if testparams is None:
+                        break
+                    if self.pps.sa_test_Dark:
+                        self.pps.darksub = testparams.bDark
+                        self.reduce_data_sa()
+                    scale, dbg, flux, err, sel, w = test_iter(testparams)
+                    current_mad = self.sa_mad
+                    self.mess('{:s}, mad={:.2f} [sa]'.format(str(testparams), current_mad), 0)
+                nominal = fo.get_best()
+                self.mess('--- Iter best {:d}: {:s} [sa]'.format(n, str(nominal)), 0)
+            self.mess('Optimisation done ({:d} iterations) [sa]'.format(len(fo.tested_params)), 0)
+            self.mess(fo.str_tested(), 0)
+            self.mess('--- Generating best result [sa]', 0)
+            nominal.mad = None
+            scale, dbg, flux, err, sel, w = test_iter(nominal, self.pps.sigma_clip_niter+1)
+            self.mess('{:s}, mad={:.2f} [sa]'.format(str(nominal), self.sa_mad), 0)
+            self.mess('--- Done! [sa]', 0)
 
         return  scale, dbg, flux, err, sel, w
 
@@ -489,69 +534,117 @@ class PsfPhot:
         integrated 'flux'.
         """
         self.mess('--- Start processing imagette data with eigen')
+        self.im_bg_refined = False
+        max_klip = len(self.eigen_psf)
+
+
         klip = self.pps.klip
-        niter = self.pps.sigma_clip_niter
         if klip is None:
             klip = len(self.eigen_psf)
         else:
             klip = min(klip, len(self.eigen_psf))
-        sel = self.im_cent_sel
         
-        dbg = np.zeros_like(self.im_bg)
+        def test_iter(params, niter=self.pps.sigma_clip_niter):
+            # Reset some state variables that are modified during iteration
+            sel = self.im_cent_sel
+            dbg = np.zeros_like(self.im_bg)
+            self.im_dbg = np.zeros_like(self.im_bg)
+            self.pps.remove_static = params.bStat
+            self.im_stat_res *= 0
+            self.im_smear_resid *= 0
+            self.im_noise = self.raw_noise_im()
+            self.im_mask_cube[:] = self.im_mask
 
-        for n in range(niter):
-            self.mess('--- Iteration im {:d}/{:d}'.format(n+1, niter))
-            # Only extract photometry from frames with source
-            bg_mod = self.bg_model_im()
-            psf_cube0, scale0, dbg0, w0 = multi_psf_fit(
-                            self.eigen_psf[:klip],
-                            self.im_sub[sel] - bg_mod[sel],
-                            self.im_noise[sel],
-                            self.im_mask_cube[sel],
-                            self.im_xc[sel], self.im_yc[sel],
-                            fitrad=self.pps.fitrad,
-                            defrad=self.pps.psf_rad,
-                            bg_fit=self.pps.bg_fit,
-                            nthreads=self.pps.nthreads, 
-                            non_negative=self.pps.non_neg_lsq)
-            # Interpolate over frames without source
-            t0 = self.im_att[sel, 0]
-            t = self.im_att[:, 0]
-            self.im_psf_cube = interp_cube_ext(t, t0, psf_cube0*self.im_apt)
-            w = interp_cube_ext(t, t0, w0)
-            scale = np.interp(t, t0, scale0)
-            dbg = np.interp(t, t0, dbg0)
-            self.im_dbg = dbg
+            for n in range(niter):
+                self.mess('--- Iteration im {:d}/{:d}'.format(n+1, niter))
+                # Only extract photometry from frames with source
+                bg_mod = self.bg_model_im()
+                psf_cube0, scale0, dbg0, w0 = multi_psf_fit(
+                                self.eigen_psf[:params.klip],
+                                self.im_sub[sel] - bg_mod[sel],
+                                self.im_noise[sel],
+                                self.im_mask_cube[sel],
+                                self.im_xc[sel], self.im_yc[sel],
+                                fitrad=params.fitrad,
+                                defrad=self.pps.psf_rad,
+                                bg_fit=params.bBG,
+                                nthreads=self.pps.nthreads, 
+                                non_negative=self.pps.non_neg_lsq)
+                # Interpolate over frames without source
+                t0 = self.im_att[sel, 0]
+                t = self.im_att[:, 0]
+                self.im_psf_cube = interp_cube_ext(t, t0, psf_cube0*self.im_apt)
+                w = interp_cube_ext(t, t0, w0)
+                scale = np.interp(t, t0, scale0)
+                dbg = np.interp(t, t0, dbg0)
+                self.im_dbg = dbg
 
-            self.mess('Iter {:d} MAD im: {:.2f} ppm'.format(n+1, mad(scale0)))
-            self.make_mask_cube_im()
-            self.im_mask_cube[sel==0] = self.im_mask
-            res = self.compute_residuals_im()
+                self.mess('Iter {:d} MAD im: {:.2f} ppm'.format(n+1, mad(scale0)))
+                self.make_mask_cube_im()
+                self.im_mask_cube[sel==0] = self.im_mask
+                res = self.compute_residuals_im()
 
-            if self.pps.remove_static:
-                self.compute_resid_stat_im(res)
-            if self.pps.smear_resid_im:
-                self.update_smear_im(res)
+                if self.pps.smear_resid_im:
+                    self.update_smear_im(res)
+                if params.bStat:
+                    self.compute_resid_stat_im(res)
 
-            self.im_noise = (self.psf_noise_im(np.abs(self.im_psf_cube) +
-                                               np.abs(self.bg_model_im()) +
-                                               np.abs(self.im_dark))**2 +
-                             self.im_dark_err**2)**.5
-            
-            if self.pps.bgstars and self.pps.fit_bgstars and n == 0:
-                # Only refince during the first iteration
-                self.refine_star_bg_im()
-                self.make_star_bg_cube_im()
+                self.im_noise = (self.psf_noise_im(np.abs(self.im_psf_cube) +
+                                                np.abs(self.bg_model_im()) +
+                                                np.abs(self.im_dark))**2 +
+                                self.im_dark_err**2)**.5
+                
+                if self.pps.bgstars and self.pps.fit_bgstars and self.im_bg_refined is False:
+                    # Only refince once
+                    self.refine_star_bg_im()
+                    self.make_star_bg_cube_im()
+                    self.im_bg_refined = True
 
-        flux, err = self.psf_phot_im(self.im_psf_cube, self.pps.fitrad)
-        flags = self.save_results_im(scale, err, w, sel)
+            flux, err = self.psf_phot_im(self.im_psf_cube, self.pps.fitrad)
+            flag = self.save_results_im(scale, err, w, sel)
 
-        sel = (flags==0)
-        self.mad_im = mad(scale)
-        self.mess('MAD im: {:.2f} ppm'.format(self.mad_im))
-        self.mess('MAD im[flag==0]: {:.2f} ppm'.format(mad(scale[sel])))
-        self.im_flux = scale
-        self.im_sel = sel
+            sel = (flag==0)
+            self.im_mad = mad(scale[sel])
+            self.mess('MAD im: {:.2f} ppm'.format(mad(scale)))
+            self.mess('MAD im[flag==0]: {:.2f} ppm'.format(mad(scale[sel])))
+            self.im_flux = scale
+            self.im_sel = sel
+
+            return scale, dbg, flux, err, sel, w
+
+        klip = min(self.pps.klip, max_klip)
+        nominal = TestParams(klip=klip, fitrad=self.pps.fitrad, bBG=self.pps.bg_fit,
+                                bDark=self.pps.darksub, bStat=self.pps.remove_static)
+
+        if self.pps.im_optimise is False:
+            scale, dbg, flux, err, sel, w = test_iter(nominal)
+        else:
+            self.mess('Start optimising [im]', 0)
+            fo = FindOptimal(self.pps.im_test_klips, self.pps.im_test_fitrads,
+                             self.pps.im_test_BG, self.pps.im_test_Dark, self.pps.im_test_Stat)
+            for n in range(self.pps.optimise_restarts):
+                nominal.mad = None
+                current_mad = None
+                fo.start(nominal, self.pps.optimise_tree_iter)
+                while True:
+                    testparams = fo.next_test(current_mad)
+                    if testparams is None:
+                        break
+                    if self.pps.im_test_Dark:
+                        self.pps.darksub = testparams.bDark
+                        self.reduce_data_im()
+                    scale, dbg, flux, err, sel, w = test_iter(testparams)
+                    current_mad = self.im_mad
+                    self.mess('{:s}, mad={:.2f} [im]'.format(str(testparams), current_mad), 0)
+                nominal = fo.get_best()
+                self.mess('--- Iter best {:d}: {:s} [im]'.format(n, str(nominal)), 0)
+            self.mess('Optimisation done ({:d} iterations) [im]'.format(len(fo.tested_params)), 0)
+            self.mess(fo.str_tested(), 0)
+            self.mess('--- Generating best result [im]', 0)
+            nominal.mad = None
+            scale, dbg, flux, err, sel, w = test_iter(nominal, self.pps.sigma_clip_niter+1)
+            self.mess('{:s}, mad={:.2f} [im]'.format(str(nominal), self.im_mad), 0)
+            self.mess('--- Done! [im]', 0)
 
         return  scale, dbg, flux, err, sel, w
 
@@ -578,7 +671,7 @@ class PsfPhot:
         flag = np.zeros(flagCenter.shape, dtype='int8')
         flag[:] = (1*flagCenter + 2*flagBadPix + 4*flagFlux +
                     8*flagSource + 16*flagBG)
-        
+
         self.save_eigen_sa(flag, scale, scale*err,
                            self.sa_dbg + self.sa_bg, w)
 
@@ -600,7 +693,6 @@ class PsfPhot:
             self.save_cube_fits('empiric_noise_sa.fits', emp_noise_cube)
 
         return flag
-
 
 
     def save_results_im(self, scale, err, w, sel):
@@ -775,6 +867,7 @@ class PsfPhot:
 
         # Initialise data cube for smear (# frames x width)
         self.sa_smear = np.zeros(sa_raw.shape[0:3:2])
+        self.sa_smear_resid = np.zeros(sa_raw.shape[0:3:2])
 
         # Initialise frame for static residual image
         self.sa_stat_res = 0 * sa_raw[0]
@@ -848,6 +941,7 @@ class PsfPhot:
 
         # Initialise data cube for smear (# frames x width)
         self.im_smear = np.zeros(im_raw.shape[0:3:2])
+        self.im_smear_resid = np.zeros(im_raw.shape[0:3:2])
 
         # Initialise frame for static residual image
         self.im_stat_res = 0 * im_raw[0]
@@ -1231,7 +1325,7 @@ class PsfPhot:
         """
         self.mess('Removing residual smear [sa]')
         for n in range(len(res)):
-            self.sa_smear[n] += resid_smear(res[n])/self.sa_norm
+            self.sa_smear_resid[n] = resid_smear(res[n])/self.sa_norm
 
 
     def update_smear_im(self, res):
@@ -1242,7 +1336,7 @@ class PsfPhot:
         """
         self.mess('Removing residual smear [im]')
         for n in range(len(res)):
-            self.im_smear[n] += resid_smear(res[n])/self.im_norm
+            self.im_smear_resid[n] = resid_smear(res[n])/self.im_norm
 
 
     def sa_bg2im_bg(self):
@@ -1730,7 +1824,7 @@ class PsfPhot:
         return sel
     
         
-    def filter_high_bg(self, bg, clip=10, niter=10, sel=None):
+    def filter_high_bg(self, bg, clip=5, niter=10, sel=None):
         """Returns binary index of frames without too deviating background,
         as often happens when pointing is close to Earth limb
         """

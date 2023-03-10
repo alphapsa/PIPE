@@ -148,7 +148,7 @@ class PipeParam:
         self.save_astrometry = False # For binaries, saves text file with separation
         
         # Extraction parameters
-        self.klip = 10           # Number of eigen components of PSF to use.
+        self.klip = 5            # Number of eigen components of PSF to use.
         self.sigma_clip = 15     # The residual/std-factor for masking
         self.sigma_clip_niter = 2    # Number of iterations used for sigma-clipping
         self.empiric_noise = False   # Use noise determined by statistics on residuals
@@ -171,10 +171,27 @@ class PipeParam:
         self.sa_psfrad = 105      # Radius of area to subtract PSF in subarrays
         self.fitrad = 30         # Fit PSF inside this radius for flux
         self.normrad = 25        # Flux normalisation radius for PSF
-        # self.im_psfrad = 23      # Radius of area where most of the PSF flux is
-        #                          # Used for fitting and rough aperture photometry                                 
 
-                                 
+        # Optimisation parameters. NB: time consuming.
+        self.optimise_tree_iter = 5                 # Number of iterations in the search tree
+        self.optimise_restarts = 3                  # Number of restarts for search
+        self.sa_optimise = False                    # Optimise over range of parameters
+                                                    # below -- only if set to True
+        self.sa_test_klips = [1,3,5,10]             # Klip values to be tested
+        self.sa_test_fitrads = [25,30,40,45,50,60]  # fitrad values to be tested
+        self.sa_test_BG = True                      # Vary fit background?
+        self.sa_test_Dark = False                   # Vary subtract dark?
+        self.sa_test_Stat = True                    # Vary subtract static residual?
+
+        self.im_optimise = False                    # Optimise over range of parameters
+                                                    # below -- only if set to True
+        self.im_test_klips = [1,3,5,10]             # Klip values to be tested
+        self.im_test_fitrads = [25,30]              # fitrad values to be tested
+        self.im_test_BG = True                      # Vary fit background?
+        self.im_test_Dark = False                   # Vary subtract dark?
+        self.im_test_Stat = True                    # Vary subtract static residual?
+
+
     def str_list(self):
         """ Returns list of strings for all parameters, where each string states
             the current value of a parameter
@@ -219,7 +236,7 @@ class PipeParam:
         self.file_att = find_file(("SCI_RAW_Attitude", "attitude."))
         self.file_sa_raw = find_file(("RAW_SubArray", "raw."))
         self.file_hk = find_file(("SCI_RAW_HkExtended",))
-        self.file_im = find_file(("SCI_RAW_Imagette", "imagettes."))
+        self.file_im = find_file(("SCI_RAW_Imagette", "imagettes."), warn=False)
         self.file_starcat = find_file(("EXT_PRE_StarCatalogue", "starcat."))
 
         # Reference files
