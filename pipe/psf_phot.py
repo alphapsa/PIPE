@@ -491,7 +491,7 @@ class PsfPhot:
         if self.pps.sa_optimise is False:
             scale, dbg, flux, err, sel, w = test_iter(nominal)
         else:
-            self.mess('Start optimising {:s}/{:s} ({:.5d}) [sa]'.format(
+            self.mess('Start optimising {:s}/{:s} ({:05d}) [sa]'.format(
                 self.pps.name, self.pps.visit, self.pps.version), 0)            
             fo = FindOptimal(self.pps.sa_test_klips, self.pps.sa_test_fitrads,
                              self.pps.sa_test_BG, self.pps.sa_test_Dark, self.pps.sa_test_Stat)
@@ -620,7 +620,7 @@ class PsfPhot:
         if self.pps.im_optimise is False:
             scale, dbg, flux, err, sel, w = test_iter(nominal)
         else:
-            self.mess('Start optimising {:s}/{:s} ({:.5d}) [im]'.format(
+            self.mess('Start optimising {:s}/{:s} ({:05d}) [im]'.format(
                 self.pps.name, self.pps.visit, self.pps.version), 0)            
             fo = FindOptimal(self.pps.im_test_klips, self.pps.im_test_fitrads,
                              self.pps.im_test_BG, self.pps.im_test_Dark, self.pps.im_test_Stat)
