@@ -472,17 +472,17 @@ class PsfPhot:
                     self.make_star_bg_cube_sa()
                     self.sa_bg_refined = True
 
-                flux, err = self.psf_phot_sa(self.sa_psf_cube, self.pps.fitrad)
-                flag = self.save_results_sa(scale, err, w, sel)
+            flux, err = self.psf_phot_sa(self.sa_psf_cube, self.pps.fitrad)
+            flag = self.save_results_sa(scale, err, w, sel)
 
-                sel = (flag==0)
-                self.sa_mad = mad(scale[sel])
-                self.mess('MAD sa: {:.2f} ppm'.format(mad(scale)))
-                self.mess('MAD sa[flag==0]: {:.2f} ppm'.format(mad(scale[sel])))
-                self.sa_flux = scale
-                self.sa_sel = sel
- 
-                return scale, dbg, flux, err, sel, w
+            sel = (flag==0)
+            self.sa_mad = mad(scale[sel])
+            self.mess('MAD sa: {:.2f} ppm'.format(mad(scale)))
+            self.mess('MAD sa[flag==0]: {:.2f} ppm'.format(mad(scale[sel])))
+            self.sa_flux = scale
+            self.sa_sel = sel
+
+            return scale, dbg, flux, err, sel, w
 
         klip = min(self.pps.klip, max_klip)
         nominal = TestParams(klip=klip, fitrad=self.pps.fitrad, bBG=self.pps.bg_fit,
