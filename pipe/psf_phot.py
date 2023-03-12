@@ -72,7 +72,13 @@ class PsfPhot:
         
         self.plog.mess_list(self.pps.str_list()) # Save list of params to log
         
+        if self.pps.file_starcat is None:
+            self.pps.bgstars = False
+            self.pps.fit_bgstars = False
+
         if self.pps.Teff is None:
+            if self.pps.file_starcat is None:
+                raise Exception('Without starcat, Teff needs to be defined')
             self.pps.Teff = self.read_Teff()
         
         # ----------- General variables
@@ -427,6 +433,10 @@ class PsfPhot:
             self.sa_smear_resid *= 0
             self.sa_noise = self.raw_noise_sa()
             self.sa_mask_cube[:] = self.sa_mask
+            if params.bBG:
+                bg_fit=0
+            else:
+                bg_fit=-1
 
             for n in range(niter):
                 self.mess('--- Iteration sa {:d}/{:d}'.format(n+1, niter))
@@ -439,7 +449,7 @@ class PsfPhot:
                                 self.sa_xc[sel], self.sa_yc[sel],
                                 fitrad=params.fitrad,
                                 defrad=self.pps.psf_rad,
-                                bg_fit=params.bBG,
+                                bg_fit=bg_fit,
                                 nthreads=self.pps.nthreads,
                                 non_negative=self.pps.non_neg_lsq)
                 # Interpolate over frames without source
@@ -485,7 +495,7 @@ class PsfPhot:
             return scale, dbg, flux, err, sel, w
 
         klip = min(self.pps.klip, max_klip)
-        nominal = TestParams(klip=klip, fitrad=self.pps.fitrad, bBG=self.pps.bg_fit,
+        nominal = TestParams(klip=klip, fitrad=self.pps.fitrad, bBG=(self.pps.bg_fit==0),
                                 bDark=self.pps.darksub, bStat=self.pps.remove_static)
 
         if self.pps.sa_optimise is False:
@@ -555,6 +565,10 @@ class PsfPhot:
             self.im_smear_resid *= 0
             self.im_noise = self.raw_noise_im()
             self.im_mask_cube[:] = self.im_mask
+            if params.bBG:
+                bg_fit=0
+            else:
+                bg_fit=-1
 
             for n in range(niter):
                 self.mess('--- Iteration im {:d}/{:d}'.format(n+1, niter))
@@ -568,7 +582,7 @@ class PsfPhot:
                                 self.im_xc[sel], self.im_yc[sel],
                                 fitrad=params.fitrad,
                                 defrad=self.pps.psf_rad,
-                                bg_fit=params.bBG,
+                                bg_fit=bg_fit,
                                 nthreads=self.pps.nthreads, 
                                 non_negative=self.pps.non_neg_lsq)
                 # Interpolate over frames without source
@@ -614,7 +628,7 @@ class PsfPhot:
             return scale, dbg, flux, err, sel, w
 
         klip = min(self.pps.klip, max_klip)
-        nominal = TestParams(klip=klip, fitrad=self.pps.fitrad, bBG=self.pps.bg_fit,
+        nominal = TestParams(klip=klip, fitrad=self.pps.fitrad, bBG=(self.pps.bg_fit==0),
                                 bDark=self.pps.darksub, bStat=self.pps.remove_static)
 
         if self.pps.im_optimise is False:

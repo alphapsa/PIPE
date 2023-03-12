@@ -80,7 +80,7 @@ class PipeParam:
         self.lim_fit = 0.01      # Attempt to fit for position and photometry for bgstars down
                                  # to this fraction of target flux
         self.bg_star_inrad = 5   # Minimum distance from targets for bg stars to be fitted
-        self.blur_res = 0.3      # For bg stars, produce rotational blur to this pixel resolution
+        self.blur_res = 0.5      # For bg stars, produce rotational blur to this pixel resolution
         self.centre = True       # If True, find the centre of the star. Else, assume it is 
                                  # at the centre of the frame (plus default offsets)
         self.centre_psf_filename = None     # Filename of special PSF to be used for centroiding.
