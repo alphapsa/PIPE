@@ -106,7 +106,7 @@ class PSF_Library:
         else:
             num = max(min_num, np.sum(score<score_lim))
         num = min(num, len(self.files))
-        return sort_filenames[:num]
+        return sort_filenames[:num], score[ind][:num]
 
 
     def best_Teff_matches(self, Teff, min_num=5, score_lim=None):
@@ -117,7 +117,7 @@ class PSF_Library:
         target_params = (self.target_x, self.target_y, Teff, self.target_TF2,
                          self.target_mjd, self.target_exptime)
         return self.best_matches(target_params=target_params,
-                                 min_num=min_num, score_lim=score_lim)
+                                 min_num=min_num, score_lim=score_lim)[0]
 
 
     def filename(self, xc, yc, Teff, TF2, mjd, exptime, serial=None, outdir=None):

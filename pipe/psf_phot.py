@@ -228,15 +228,17 @@ class PsfPhot:
             self.mess('PSF parameters: (x, y) = ({:03d},{:03d})'.format(ixoff, iyoff))
             self.mess('Teff = {:.0f}K, MJD = {:.1f}, exptime = {:04.1f}'.format(
                 Teff, mjd, exptime))
-            self.mess('Range of TF2: (min, med, max) = ({:04.1f}K, {:04.1f}K, {:04.1f}K)'.format(
+            self.mess('Range of TF2: (min, med, max) = ({:04.1f}C, {:04.1f}C, {:04.1f}C)'.format(
                 TF2_min, TF2_med, TF2_max))
 
             psf_files = []
             for TF2 in [TF2_min, TF2_med, TF2_max]:
-                more_files = self.psf_lib.best_matches((ixoff, iyoff, Teff, TF2, mjd, exptime),
-                                                min_num=self.pps.psf_min_num,
-                                                score_lim=self.pps.psf_score)
+                more_files, scores = self.psf_lib.best_matches((ixoff, iyoff, Teff, TF2, mjd, exptime),
+                                                                min_num=self.pps.psf_min_num,
+                                                                score_lim=self.pps.psf_score)
                 psf_files = np.concatenate((psf_files, more_files))
+                self.mess('For TF2 = {:.2f}C: {:d} PSFs, score {:.2f} to {:.2f}'.format(
+                          TF2, len(more_files), scores[0], scores[-1]))
             psf_files = np.unique(psf_files)
         else:
             self.mess('Using pre-defined PSF list')
