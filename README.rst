@@ -21,7 +21,7 @@ than the subarrays.
 Why should you care about PIPE when we already have the DRP? There are a couple
 of advantages in using PIPE:
 
-* The shorter cadence of imagattes increases the time resolution of the
+* The shorter cadence of imagettes increases the time resolution of the
   photometry. This can be of a distinct advantage for some applications,
   e.g. when stellar activity such as flares need to be time resolved, or
   when ingress/egress is desired to be better resolved for timing purposes.
