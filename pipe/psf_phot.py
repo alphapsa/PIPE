@@ -470,7 +470,7 @@ class PsfPhot:
         
                 if self.pps.smear_resid_sa:
                     self.update_smear_sa(res)
-                    res -= self.sa_norm * self.sa_smear_resid[:,None,:]
+                    res = self.compute_residuals_sa()
                 if params.bStat:
                     self.compute_resid_stat_sa(res)
                     
@@ -604,7 +604,7 @@ class PsfPhot:
 
                 if self.pps.smear_resid_im:
                     self.update_smear_im(res)
-                    res -= self.im_norm * self.im_smear_resid[:,None,:]
+                    res = self.compute_residuals_im()
                 if params.bStat:
                     self.compute_resid_stat_im(res)
 
@@ -1345,7 +1345,7 @@ class PsfPhot:
         """
         self.mess('Removing residual smear [sa]')
         for n in range(len(res)):
-            self.sa_smear_resid[n] = resid_smear(res[n])/self.sa_norm
+            self.sa_smear_resid[n] += resid_smear(res[n])/self.sa_norm
 
 
     def update_smear_im(self, res):
@@ -1356,7 +1356,7 @@ class PsfPhot:
         """
         self.mess('Removing residual smear [im]')
         for n in range(len(res)):
-            self.im_smear_resid[n] = resid_smear(res[n])/self.im_norm
+            self.im_smear_resid[n] += resid_smear(res[n])/self.im_norm
 
 
     def sa_bg2im_bg(self):
