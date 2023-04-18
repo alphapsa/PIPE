@@ -470,6 +470,7 @@ class PsfPhot:
         
                 if self.pps.smear_resid_sa:
                     self.update_smear_sa(res)
+                    res -= self.sa_norm * self.sa_smear_resid[:,None,:]
                 if params.bStat:
                     self.compute_resid_stat_sa(res)
                     
@@ -603,6 +604,7 @@ class PsfPhot:
 
                 if self.pps.smear_resid_im:
                     self.update_smear_im(res)
+                    res -= self.im_norm * self.im_smear_resid[:,None,:]
                 if params.bStat:
                     self.compute_resid_stat_im(res)
 
