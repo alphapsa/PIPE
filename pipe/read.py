@@ -407,5 +407,5 @@ def save_psf_filenames(filename, psf_filenames):
     np.savetxt(filename, psf_filenames, fmt='%s')
 
 def read_psf_filenames(filename):
-    with open('filnamn.txt', 'r') as fp:
+    with open(filename, 'r') as fp:
         return [filename.strip() for filename in fp.readlines()]
