@@ -13,7 +13,6 @@ import numpy as np
 from numpy.linalg import lstsq
 from scipy.optimize import nnls
 from .reduce import coo_mat
-from .reduce import aperture
 
 def fit(psf_list, frame, noise, mask, xc, yc, 
                 fitrad=50, defrad=105, krn_scl=0.3,
