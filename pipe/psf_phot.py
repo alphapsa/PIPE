@@ -70,7 +70,7 @@ class PsfPhot:
         self.plog = PipeLog(self.pps.file_log, plog_verbosity)
         self.mess = self.plog.mess  # Shorthand
         
-        self.mess('PIPE version TBD')
+        self.mess('PIPE version TBC')
         self.plog.mess_list(self.pps.str_list()) # Save list of params to log
         
         if self.pps.file_starcat is None:
