@@ -55,6 +55,7 @@ from .reduce import (
     pix_mat, make_maskcube, rough_contrast, check_low, check_val, check_pos,
     check_motion, check_mask, empiric_noise, cti_corr_fun, resid_smear
 )
+from .version import __version__
 
 
 class PsfPhot:
@@ -70,7 +71,7 @@ class PsfPhot:
         self.plog = PipeLog(self.pps.file_log, plog_verbosity)
         self.mess = self.plog.mess  # Shorthand
         
-        self.mess('PIPE version TBC')
+        self.mess(f'PIPE version {__version__}')
         self.plog.mess_list(self.pps.str_list()) # Save list of params to log
         
         if self.pps.file_starcat is None:
