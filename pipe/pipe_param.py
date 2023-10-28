@@ -78,10 +78,14 @@ class PipeParam:
         self.limflux = 1e-5      # Include bgstars down to this fraction of the target flux
         self.fit_bgstars = True  # True if background stars are to be fitted
         self.lim_fit = 0.01      # Attempt to fit for position and photometry for bgstars down
-                                 # to this fraction of target flux
+                                 # to this fraction of target flux                                 
         self.bg_star_inrad = 5   # Minimum distance from targets for bg stars to be fitted
         self.blur_res = 0.5      # For bg stars, produce rotational blur to this pixel resolution
-        self.centre = True       # If True, find the centre of the star. Else, assume it is 
+        self.mask_bg_stars = False       # Mask out pixels contaminated by background stars
+        self.mask_bg_stars_circle = True # Use a circular mask
+        self.mask_bg_radius = 20.0       # Mask out BG stars to this radius in pixels (if masked out)
+        self.mask_bg_level = 0.1         # If not circular mask, use this level of peak to define mask
+        self.centre = True       # If True, find the centre of the target star. Else, assume it is 
                                  # at the centre of the frame (plus default offsets)
         self.centre_psf_filename = None     # Filename of special PSF to be used for centroiding.
                                             # Used to ensure consistent PSF deconvolution
@@ -99,7 +103,7 @@ class PipeParam:
         self.smear_resid_im = False # True if residual smearing effect is to be removed
         self.remove_static = False  # True if median of residual cube ("static") is to 
                                     # be subtracted (gets rid of dark current)
-        self.pos_static = True   # Only subtract positive static image
+        self.pos_static = False  # Only subtract positive static image
         self.flatfield = True    # True if flat field correction should be applied
         self.darksub = True      # True if dark current is to be subtracted (from
                                  # Dark folder in calibpath)
