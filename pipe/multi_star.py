@@ -13,6 +13,7 @@ an empirical PSF.
 import numpy as np
 import multiprocessing as mp
 from .syntstar import make_bg_frame, refine_bg_model
+from .syntstar import make_bg_psf_mask, make_bg_circ_mask
 
 
 def make_star_bg(shape, psf_ids, psfs, work_cats, skip=[0], krn_scl=0.3, krn_rad=3, nthreads=1):
@@ -47,3 +48,32 @@ def refine_star_bg(starids, datacube, noisecube, maskcube, modelcube, psf_norm,
 
     return refined_cats
 
+
+def make_bg_circ_mask_cube(shape, work_cats, skip=[0], radius=20, nthreads=1):
+    in_params = []
+
+    for wc in work_cats:
+        in_params.append((shape, wc, skip, radius))
+
+    with mp.Pool(nthreads) as p:
+        mask = p.starmap(make_bg_circ_mask, in_params)
+
+    return np.array(mask)
+
+
+def make_bg_psf_mask_cube(shape, psf_ids, psfs, work_cats, skip=[0], krn_scl=0.3,
+                          krn_rad=3, radius=25, level=0.1, nthreads=1):
+    in_params = []
+    xkern = np.linspace(-krn_rad, krn_rad, 2*krn_rad + 1)
+    xkmat, ykmat = np.meshgrid(xkern, xkern)
+    selk = (xkmat**2+ykmat**2) <= krn_rad**2
+    kx = krn_scl*xkmat[selk]
+    ky = krn_scl*ykmat[selk]
+
+    for wc in work_cats:
+        in_params.append((shape, wc, psf_ids[:wc.catsize], psfs, skip, kx, ky, radius, level))
+
+    with mp.Pool(nthreads) as p:
+        mask = p.starmap(make_bg_psf_mask, in_params)
+
+    return np.array(mask)

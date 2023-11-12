@@ -48,7 +48,7 @@ from .read import (
 )
 from .spline_pca import SplinePCA
 from .syntstar import star_bg, rotate_position, derotate_position, psf_radii
-from .multi_star import make_star_bg, refine_star_bg
+from .multi_star import make_star_bg, refine_star_bg, make_bg_circ_mask_cube, make_bg_psf_mask_cube
 from .reduce import (
     resample_attitude, resample_imagette_time, aperture, integrate_psf,
     interp_cube_ext, cube_apt, clean_cube2D, interp_cube, noise, psf_noise,
@@ -97,6 +97,7 @@ class PsfPhot:
         self.sa_sub = None      # Reduced cube with background (and dark)
                                 # subtracted, smearing corrected
         self.sa_bgstars = None  # Cube of background stars in subarray
+        self.sa_bg_mask = None  # Cube of PSF core mask of BG stars
         self.sa_dark = None     # Dark current subarray image scaled to exp. time
         self.sa_dark_err = None # Std error of subarray dark current image
         self.sa_mask = None     # Mask image for bad pixels in subarray
@@ -142,6 +143,7 @@ class PsfPhot:
         self.im_t = None        # Interp parameter (norm epochs from 0 to 1)
         self.im_apt = None      # Image that defines active pixels in cube
         self.im_bgstars = None  # Cube of background stars in imagettes
+        self.im_bg_mask = None  # Cube of PSF core mask of BG stars
         self.im_bg = None       # Background value, a constant for each frame
                                 # in cube list
         self.im_dbg = 0         # Differential background value, used to correct bg
@@ -322,6 +324,7 @@ class PsfPhot:
 
         # Compute background stars and smearing
         self.make_star_bg_cube_sa(skip=skip_bg_stars)
+        self.make_bg_mask_sa(skip=skip_bg_stars)
         self.compute_smearing_sa()
 
         self.sa_norm, self.sa_apt_flux = self.comp_fix_apt_phot(self.sa_sub,
@@ -333,6 +336,7 @@ class PsfPhot:
 
         if self.pps.file_im is not None:
             self.make_star_bg_cube_im(skip=skip_bg_stars)
+            self.make_bg_mask_im(skip=skip_bg_stars)
             self.compute_smearing_im()
             self.im_norm, self.im_apt_flux = self.comp_fix_apt_phot(self.im_sub,
                                 self.im_bgstars, self.im_smear,
@@ -445,11 +449,15 @@ class PsfPhot:
             for n in range(niter):
                 self.mess('--- Iteration sa {:d}/{:d}'.format(n+1, niter))
                 bg_mod = self.bg_model_sa()
+                if self.pps.mask_bg_stars:
+                    mask_cube = self.sa_mask_cube[sel] * self.sa_bg_mask[sel]
+                else:
+                    mask_cube = self.sa_mask_cube[sel]
                 psf_cube0, scale0, dbg0, w0 = multi_psf_fit(
                                 self.eigen_psf[:params.klip],
                                 self.sa_sub[sel] - bg_mod[sel],
                                 self.sa_noise[sel],
-                                self.sa_mask_cube[sel],
+                                mask_cube,
                                 self.sa_xc[sel], self.sa_yc[sel],
                                 fitrad=params.fitrad,
                                 defrad=self.pps.psf_rad,
@@ -579,11 +587,15 @@ class PsfPhot:
                 self.mess('--- Iteration im {:d}/{:d}'.format(n+1, niter))
                 # Only extract photometry from frames with source
                 bg_mod = self.bg_model_im()
+                if self.pps.mask_bg_stars:
+                    mask_cube = self.im_mask_cube[sel] * self.im_bg_mask[sel]
+                else:
+                    mask_cube = self.im_mask_cube[sel]
                 psf_cube0, scale0, dbg0, w0 = multi_psf_fit(
                                 self.eigen_psf[:params.klip],
                                 self.im_sub[sel] - bg_mod[sel],
                                 self.im_noise[sel],
-                                self.im_mask_cube[sel],
+                                mask_cube,
                                 self.im_xc[sel], self.im_yc[sel],
                                 fitrad=params.fitrad,
                                 defrad=self.pps.psf_rad,
@@ -1737,6 +1749,85 @@ class PsfPhot:
                                        krn_rad=self.pps.motion_nsteps,
                                        nthreads=self.pps.nthreads) * self.im_apt
         
+
+    def make_bg_mask_sa(self, skip=[0]):
+        """Produces mask over stars image cube of properly located background stars, to
+        be subtracted from observations. skip is a list of stars to be skipped;
+        typically the target itself (0), but also the secondary in case of
+        a binary. Also excludes stars closer than pps.mask_bg_star_sep from target.
+        """
+        if not self.pps.bgstars or not self.pps.mask_bg_stars:
+            self.mess('No background stars masked [sa]')
+            return
+
+        for n in range(1, self.starcat.catsize):
+            if self.starcat.xpos[n]**2 + self.starcat.ypos[n]**2 <= self.pps.mask_bg_star_sep**2:
+                skip.append(n)
+            else:
+                break
+        skip = np.unique(skip)
+
+        self.mess(f'Mask background stars; skip {skip} [sa]')
+
+        if self.pps.mask_bg_stars_circle:
+            self.mess('Mask background (circle) [sa]')
+            self.sa_bg_mask = make_bg_circ_mask_cube(self.sa_sub[0].shape, self.sa_workcat,
+                                        skip, radius=self.pps.mask_bg_radius,
+                                        nthreads=self.pps.nthreads) * self.sa_apt
+        else:
+            self.mess('Mask background (PSF) [sa]')
+            self.sa_bg_mask = make_bg_psf_mask_cube(self.sa_sub[0].shape, self.starcat.psf_ids,
+                                        self.starcat.psfs, self.sa_workcat,
+                                        skip,
+                                        krn_scl=self.pps.motion_step,
+                                        krn_rad=self.pps.motion_nsteps,
+                                        radius=self.pps.mask_bg_radius,
+                                        level=self.pps.mask_bg_level,
+                                        nthreads=self.pps.nthreads) * self.sa_apt
+        if self.pps.save_bg_mask_cube:
+            self.save_cube_fits('bg_mask_cube_sa.fits', 
+                                np.array(self.sa_bg_mask, dtype='uint8'))
+
+
+
+    def make_bg_mask_im(self, skip=[0]):
+        """Produces mask over stars image cube of properly located background stars, to
+        be subtracted from observations. skip is a list of stars to be skipped;
+        typically the target itself (0), but also the secondary in case of
+        a binary. Also excludes stars closer than pps.mask_bg_star_sep from target.
+        """
+        if not self.pps.bgstars or not self.pps.mask_bg_stars:
+            self.mess('No background stars masked [im]')
+            return
+
+        for n in range(1, self.starcat.catsize):
+            if self.starcat.xpos[n]**2 + self.starcat.ypos[n]**2 <= self.pps.mask_bg_star_sep**2:
+                skip.append(n)
+            else:
+                break
+        skip = np.unique(skip)
+
+        self.mess(f'Mask background stars; skip {skip} [im]')
+
+        if self.pps.mask_bg_stars_circle:
+            self.mess('Mask background (circle) [im]')
+            self.im_bg_mask = make_bg_circ_mask_cube(self.im_sub[0].shape, self.im_workcat,
+                                        skip, radius=self.pps.mask_bg_radius,
+                                        nthreads=self.pps.nthreads) * self.im_apt
+        else:
+            self.mess('Mask background (PSF) [im]')
+            self.im_bg_mask = make_bg_psf_mask_cube(self.im_sub[0].shape, self.starcat.psf_ids,
+                                        self.starcat.psfs, self.im_workcat,
+                                        skip,
+                                        krn_scl=self.pps.motion_step,
+                                        krn_rad=self.pps.motion_nsteps,
+                                        radius=self.pps.mask_bg_radius,
+                                        level=self.pps.mask_bg_level,
+                                        nthreads=self.pps.nthreads) * self.im_apt
+        if self.pps.save_bg_mask_cube:
+            self.save_cube_fits('bg_mask_cube_im.fits', 
+                                np.array(self.im_bg_mask, dtype='uint8'))
+
 
     def refine_star_bg_sa(self):
         """Fit PSF for the brightest stars to refine the subtraction, and

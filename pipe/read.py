@@ -12,7 +12,6 @@ Also contains routines that save data in fits or text formats.
 """
 
 import os
-import pickle
 import numpy as np
 from scipy import interpolate
 from astropy.io import fits
@@ -20,6 +19,7 @@ from astropy.time import Time
 from astropy import units as u
 from astropy import constants as const
 from astropy.coordinates import SkyCoord, get_body_barycentric
+from .spline_pca import make_spline2D
 from .pipe_statistics import sigma_clip
 
 # Copy data from fits-files into memory
@@ -127,15 +127,18 @@ def bias_ron_adu(filename, gain):
         ron = np.nanstd(bias_pix[sel])/nexp**.5
     return bias, ron
 
+
 def PSFs(psf_files, psf_ref_path):
-    """From a list of filenames of pickled PSF files, load them
-    and put the content into a list to be returned.
+    """From a list of filenames of PSF spline parameter files,
+    load them and put the content into a list to be returned.
     """
     psflist = []
     for filename in psf_files:
-        with open(os.path.join(psf_ref_path, filename), 'rb') as input: 
-            psflist.append(pickle.load(input))
+        filepath = os.path.join(psf_ref_path, filename)
+        spl_params = np.load(filepath, allow_pickle=True)
+        psflist.append(make_spline2D(spl_params))
     return psflist        
+
 
 def gain(file_hk, file_gain):
     """Compute gain using HK parameters and the gain reference table

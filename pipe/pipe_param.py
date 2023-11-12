@@ -76,14 +76,16 @@ class PipeParam:
                                          # reprocessed 2021 or later.
         self.bgstars = True      # True if background stars are to be subtracted
         self.limflux = 1e-5      # Include bgstars down to this fraction of the target flux
+        self.bg_psf_rad = None   # Define PSF of BG stars to this radius (in pix). If 'None', use heuristic.
         self.fit_bgstars = True  # True if background stars are to be fitted
         self.lim_fit = 0.01      # Attempt to fit for position and photometry for bgstars down
                                  # to this fraction of target flux                                 
         self.bg_star_inrad = 5   # Minimum distance from targets for bg stars to be fitted
         self.blur_res = 0.5      # For bg stars, produce rotational blur to this pixel resolution
         self.mask_bg_stars = False       # Mask out pixels contaminated by background stars
-        self.mask_bg_stars_circle = True # Use a circular mask
-        self.mask_bg_radius = 20.0       # Mask out BG stars to this radius in pixels (if masked out)
+        self.mask_bg_star_sep = 30       # min separation to target [in pix] for BG star being masked
+        self.mask_bg_stars_circle = True # Use a circular mask, otherwise PSF-shaped
+        self.mask_bg_radius = 20         # Mask out BG stars to this radius in pixels (if masked out)
         self.mask_bg_level = 0.1         # If not circular mask, use this level of peak to define mask
         self.centre = True       # If True, find the centre of the target star. Else, assume it is 
                                  # at the centre of the frame (plus default offsets)
@@ -138,8 +140,9 @@ class PipeParam:
                                           # a more robust but potentially less precise
                                           # centring algorithm can be attempted
         # Save switches
-        self.save_mask_cube = True   # Save mask used to fitler out bad
+        self.save_mask_cube = True   # Save mask used to filter out bad
                                      # data (as fits file)
+        self.save_bg_mask_cube = True  # If BG star mask defined, save is as fits
         self.save_resid_cube = True  # Save cube of residuals (as fits file)
         self.save_bg_cube = False    # Save cube of residuals with bg stars (as fits file)
         self.save_bg_models = False  # Save model of background, incl stars, smearing, static

@@ -41,10 +41,8 @@ class star_bg:
     """
     def __init__(self, starcatfile, psf_lib, maxrad=None,
                  fscalemin=1e-5, pixel_scale=1.01):
-        # CHEOPS pixel scale calibrated on HD80606 <-> HD80607 at (x,y)= (280,828)
-#        self.pxl_scl = 0.9969498004253621    # CHEOPS pixel scale, arcsec/pixel
         self.pxl_scl = pixel_scale    # CHEOPS pixel scale, arcsec/pixel
-        self.psf_mod_Teff = np.array([3000.0,4000.0,5000.0,6000.0,8000.0,10000.0])
+        self.psf_mod_Teff = np.array([3000.0, 4000.0, 5000.0, 6000.0, 8000.0, 10000.0])
         self.default_psf_id = 2
         self.psf_lib = psf_lib
         self.xpos, self.ypos, self.fscale, self.Teff = \
@@ -247,6 +245,13 @@ def refine_bg_model(starids, data_frame, noise, mask, model, psf_norm,
         else:
             fitrad = 25
         
+#        fitstar_img, _bg, kmat, _sc, _w = psf_fit([psf_smear], fit_frame, noise,
+#                                                mask, xc=work_cat.x[star_id],
+#                                                yc=work_cat.y[star_id], 
+#                                                fitrad=fitrad, defrad=100,
+#                                                krn_scl=krn_scl, krn_rad=krn_rad,
+#                                                bg_fit=-1)
+
         fitstar_img, _bg, kmat, _sc, _w = psf_fit([psf_smear], fit_frame, noise,
                                                 mask, xc=work_cat.x[star_id],
                                                 yc=work_cat.y[star_id], 
@@ -258,6 +263,53 @@ def refine_bg_model(starids, data_frame, noise, mask, model, psf_norm,
         work_cat.fscale[star_id] *= knorm/(psf_norm*work_cat.fscale[star_id])
         work_cat.coeff[star_id] = kmat[selk] / knorm
     return work_cat
+
+
+
+def make_bg_circ_mask(shape, work_cat, skip=[0], radius=20):
+    """Produces frame of background stars as defined by work_cat.
+    psf_ids are indices into the list psfs that contains various PSFs.
+    kx and ky are offsets used by PSF fitting, only used by some
+    star entries (those that then have coefficients defined in
+    work_cat). Returns produced frame according to shape.
+    """
+    frame = np.zeros(shape)
+    for n in range(work_cat.catsize):
+        if n in skip:
+            continue
+        add_circle(frame,
+                work_cat.x[n],
+                work_cat.y[n],
+                radius=radius)
+    return frame == 0
+
+
+def make_bg_psf_mask(shape, work_cat, psf_ids, psfs, skip=[0], kx=None, ky=None,
+                 radius=25, level=0.1):
+    """Produces frame of background stars as defined by work_cat.
+    psf_ids are indices into the list psfs that contains various PSFs.
+    kx and ky are offsets used by PSF fitting, only used by some
+    star entries (those that then have coefficients defined in
+    work_cat). Returns produced frame according to shape.
+    """
+    frame = np.zeros(shape)
+    for n in range(work_cat.catsize):
+        if n in skip:
+            continue
+        if kx is not None and work_cat.coeff[n] is not None:
+            kmat = (work_cat.coeff[n], kx, ky)
+        else:
+            kmat = None
+        add_psf_mask(frame,
+                work_cat.x[n],
+                work_cat.y[n],
+                work_cat.dxs[n],
+                work_cat.dys[n],
+                psfs[psf_ids[n]],
+                kmat=kmat,
+                radius=radius,
+                level=level)
+    return frame == 0
 
 
 
@@ -321,6 +373,7 @@ def psf_radii(fscales):
     background image, considering the contamination. Returns
     a radius between 25 and 100 pixels, inclusive.
     """
+#    return np.array(fscales*0+100, dtype='int') # DEBUG
     radii = 25 + 75*(fscales-1e-4)/(1e-1-1e-4)
     return np.array(np.ceil(np.minimum(np.maximum(radii, 25), 100)), dtype='int')
 
@@ -331,10 +384,34 @@ def add_star(frame, flux, x0, y0, dxs, dys, psf_mod, kmat=None, radius=30):
     xi0,xi1,xj0,xj1 = find_inds(frame.shape[1], x0i, radius)
     yi0,yi1,yj0,yj1 = find_inds(frame.shape[0], y0i, radius)
     if kmat is None:
-        star_frame = flux*psf_image(x0f, y0f, dxs, dys, psf_mod, radius=radius)
+        star_frame = psf_image(x0f, y0f, dxs, dys, psf_mod, radius=radius)
     else:
-        star_frame = flux*psf_fit_image(kmat[0], x0f+kmat[1], y0f+kmat[2], dxs, dys, psf_mod, radius=radius)
-    frame[yi0:yi1,xi0:xi1] += star_frame[yj0:yj1,xj0:xj1]
+        star_frame = psf_fit_image(kmat[0], x0f+kmat[1], y0f+kmat[2], dxs, dys, psf_mod, radius=radius)
+    frame[yi0:yi1,xi0:xi1] += flux*star_frame[yj0:yj1, xj0:xj1]
+
+
+def add_psf_mask(frame, x0, y0, dxs, dys, psf_mod, kmat=None, radius=30, level=0.1):
+    x0i, y0i = int(x0), int(y0)
+    x0f, y0f = x0-x0i, y0-y0i
+    xi0,xi1,xj0,xj1 = find_inds(frame.shape[1], x0i, int(radius))
+    yi0,yi1,yj0,yj1 = find_inds(frame.shape[0], y0i, int(radius))
+    if kmat is None:
+        star_frame = psf_image(x0f, y0f, dxs, dys, psf_mod, radius=radius)
+    else:
+        star_frame = psf_fit_image(kmat[0], x0f+kmat[1], y0f+kmat[2], dxs, dys, psf_mod, radius=radius)
+    frame[yi0:yi1,xi0:xi1] += (star_frame[yj0:yj1, xj0:xj1] > level*np.max(star_frame))
+
+
+def add_circle(frame, x0, y0, radius=20):
+    im_rad = int(radius+1)
+    x0i, y0i = int(x0), int(y0)
+    x0f, y0f = x0-x0i, y0-y0i
+    xi0,xi1,xj0,xj1 = find_inds(frame.shape[1], x0i, im_rad)
+    yi0,yi1,yj0,yj1 = find_inds(frame.shape[0], y0i, im_rad)
+    v = np.linspace(-im_rad, im_rad, 2*im_rad+1)
+    X, Y = np.meshgrid(v-x0f, v-y0f)
+    circ_frame = (X**2 + Y**2) <= radius**2
+    frame[yi0:yi1,xi0:xi1] += circ_frame[yj0:yj1, xj0:xj1]
 
 
 
@@ -367,7 +444,7 @@ def psf_image(x0f, y0f, dxs, dys, psf_mod, radius=30):
     over a 2*radius+1 square frame. x0f,y0f is the 
     fractional pixel offset from centre.
     """
-    v = np.linspace(-radius, radius, 2*radius+1)
+    v = np.linspace(-radius, radius, int(2*radius+1))
     psf = MultiPSF(psf_mod, dxs, dys)
     return psf(v-x0f, v-y0f, circular=True)
  
