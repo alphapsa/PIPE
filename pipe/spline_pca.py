@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-sigma_cl
 """
 Created on Thu Jun  4 22:17:04 2020
 
@@ -12,6 +12,7 @@ import numpy as np
 from .reduce import aperture
 from scipy.linalg import eigh
 from scipy.interpolate import BivariateSpline
+from .psf_model import psf_model
 import copy
 
 
@@ -91,7 +92,7 @@ class SplinePCA:
         """Given a set of spline coefficients spl_coeff, produce 
         and return the corresponding 2D spline
         """
-        return make_spline2D(self.degrees, (self.tck0, self.tck1, spl_coeff))
+        return make_spline2D((self.tck0, self.tck1, spl_coeff, self.degrees[0], self.degrees[1]))
    
 
 def make_psf_matrix(psf_lib):
@@ -105,13 +106,21 @@ def make_psf_matrix(psf_lib):
     return psf_matrix
 
 
-def make_spline2D(degrees, tck):
+def make_spline2D(spl_params):
     """Make a 2D spline out of its defining parameters
+    The paramaters are (tck0, tck1, tck3, degree0, degree1)
+    used by BiVariateSpline to define a spline
     """
-    spl = BivariateSpline()
-    spl.degrees = degrees
-    spl.tck = copy.deepcopy(tck)
-    return spl
+    return BivariateSpline()._from_tck(spl_params)
+
+
+#def make_spline2D(degrees, tck):
+#    """Make a 2D spline out of its defining parameters
+#    """
+#    spl = BivariateSpline()
+#    spl.degrees = degrees
+#    spl.tck = copy.deepcopy(tck)
+#    return spl
 
 
 def sum_spline(psf_lib, weights=None):
@@ -123,8 +132,8 @@ def sum_spline(psf_lib, weights=None):
     if weights is not None:
         psf_matrix *= weights[:,None]
     coeffs = np.sum(psf_matrix, axis=0)
-    return make_spline2D(psf_lib[0].degrees, (psf_lib[0].tck[0],
-                         psf_lib[0].tck[1], coeffs))
+    return make_spline2D((psf_lib[0].tck[0], psf_lib[0].tck[1], coeffs,
+                          psf_lib[0].degrees[0] , psf_lib[0].degrees[1]))
     
 
 def psf_coeff(psf_fun):
@@ -138,8 +147,9 @@ def median_psf(psf_lib):
     and return a spline with the median coefficients.
     """
     mat = make_psf_matrix(psf_lib)
-    tck = (psf_lib[0].tck[0], psf_lib[0].tck[1], np.median(mat, axis=0))
-    return make_spline2D(psf_lib[0].degrees, tck)
+    spl_params = (psf_lib[0].tck[0], psf_lib[0].tck[1], np.median(mat, axis=0),
+                  psf_lib[0].degrees[0], psf_lib[0].degrees[1])
+    return make_spline2D(spl_params)
     
 
 def normalise_psf(psf_lib, radius=50):
@@ -167,18 +177,8 @@ def phot(psf_fun, radius=50, sample=10):
     """Integrate PSF spline function over circular region
     defined by radius
     """
-    x = np.linspace(-radius, radius, 2*radius*sample+1)
-    frame = np.zeros((len(x), len(x)))
-    apt = aperture(frame.shape, radius * sample)
-    return np.sum(psf_fun(x,x)*apt)/sample**2
-
-
-def phot_abs(psf_fun, radius=50, sample=10):
-    """Integrate absolute value of PSF spline function
-    over circular region defined by radius
-    """
-    abs_psf_fun = lambda x,y: np.abs(psf_fun(x,y))
-    return phot(psf_fun=abs_psf_fun, radius=radius, sample=sample)
+    pm = psf_model(psf_fun, norm_rad=radius, sample=sample)
+    return pm.norm
 
 
 if __name__=='__main__':

@@ -12,7 +12,7 @@ import warnings
 import numpy as np
 from scipy import interpolate
 from scipy.ndimage import shift
-from .cent import flux as cent_flux
+#from .cent import flux as cent_flux
 
 
 def resample_imagette_time(sa_time, nexp):
@@ -21,7 +21,7 @@ def resample_imagette_time(sa_time, nexp):
     is used to correct for a bug in imagette time
     recordings.
     """
-    DT = np.median(np.diff(sa_time))
+    DT = np.nanmedian(np.diff(sa_time))
     v = np.linspace(-(nexp-1)/(2*nexp), (nexp-1)/(2*nexp), int(nexp))*DT
     return np.reshape(sa_time[:,None] + v[None,:],-1)
 
@@ -42,7 +42,7 @@ def resample_attitude(obs_mjd, exp_time, attitude):
         if rollin[n] > rollin[n-1]:
             rollin[n:] -= 360
     
-    dt = 0.5*exp_time/24/3600
+    dt = 0.5*exp_time/24/3600 # Half exposure time, in days
     t0 = attitude[0,0]
     t = attitude[:,0] - t0
     knots = t[3:-3:5]
@@ -56,8 +56,8 @@ def resample_attitude(obs_mjd, exp_time, attitude):
     for n in range(nrows):
         t = obs_mjd[n]
         ind = np.abs(attitude[:,0]-t) <= dt
-        outparam[n,1] = np.mean(attitude[ind,1]) # RA
-        outparam[n,2] = np.mean(attitude[ind,2]) # DEC
+        outparam[n,1] = np.nanmean(attitude[ind,1]) # RA
+        outparam[n,2] = np.nanmean(attitude[ind,2]) # DEC
 
     return outparam
 
@@ -86,10 +86,10 @@ def coo_mat(shape, xc=0, yc=0):
     """Cordinate matrices defines x,y-coordinate matrices
     wrt to the defined center.
     """
-    xcoo = np.arange(shape[0]) - xc
-    ycoo = np.arange(shape[1]) - yc
+    xcoo = np.arange(shape[1]) - xc
+    ycoo = np.arange(shape[0]) - yc
     xmat, ymat = np.meshgrid(xcoo, ycoo)
-    return xmat,ymat
+    return xmat, ymat
 
 
 def aperture(shape, radius=None, xc=None, yc=None):
@@ -101,20 +101,22 @@ def aperture(shape, radius=None, xc=None, yc=None):
     if radius is None:
         radius = int(0.5*np.min(shape))
     if xc is None:
-        xc = int(shape[0]/2)
+        xc = int(shape[1]/2)
     if yc is None:
-        yc = int(shape[1]/2)
+        yc = int(shape[0]/2)
     xmat,ymat = coo_mat(shape, xc, yc)
     return xmat**2+ymat**2 < radius**2
 
 
-
-def cube_apt(shape, radius, xc, yc):
+def cube_apt(shape, radius, xc=None, yc=None):
     """Returns a cube with apertures for each plane along 0-axis
     defined by 1D-arrays xc and yc and constant radius. Used for
     rought photometry since aperture is not weighted along edges.
     """
     xmat,ymat = coo_mat(shape[1:])
+    if xc is None or yc is None:
+        xc = 0.5*shape[2]*np.ones(shape[0])
+        yc = 0.5*shape[1]*np.ones(shape[0])
     rcube2 = ((np.ones(shape)*xmat[None,:,:]-xc[:,None,None])**2 +
               (np.ones(shape)*ymat[None,:,:]-yc[:,None,None])**2)
     return rcube2 <= radius**2
@@ -237,6 +239,23 @@ def clean_cube2D(data_cube, mask, apt):
     return clean_cube
 
     
+def cti_corr_fun(t, cti_t0, cti_scale, cti_expo, cti_lim):
+    """ Returns CTI correction function for epoch t (in MJD)
+    Typical values for constants (G. Olofsson):
+    cti_t0 = 58000.0
+    cti_scale = 0.0016
+    cti_expo = -0.65
+    cti_lim = 0.033
+    Correct for CTI by multiplying frame f0 [in ADU per exposure]
+    after bias subtraction with the cti_correction function, as in 
+        q = cti_corr_fun(...)
+        f1 = f0*q(f0)
+    where f1 is the frame corrected for CTI
+    """
+    cti0 = (t-cti_t0)*cti_scale/365.25
+    return lambda x: (1 + np.minimum(cti0*(np.maximum(x, 1)/1e4)**cti_expo, cti_lim))
+
+
 def check_mask(mask_cube, apt, clip=5, niter=3):
     """Checks the number of masked pixels for each mask of 
     an array, and de-selects those frames that deviate more
@@ -245,8 +264,8 @@ def check_mask(mask_cube, apt, clip=5, niter=3):
     nmask = np.sum(mask_cube[:,apt]==0, axis=1)
     sel = np.ones(nmask.shape, dtype='?')
     for _n in range(niter):
-        mmed = np.median(nmask[sel])
-        mstd = np.std(nmask[sel])
+        mmed = np.nanmedian(nmask[sel])
+        mstd = np.nanstd(nmask[sel])
         sel = nmask-mmed <= clip*mstd
     nbad = np.sum(sel==0)
     if nbad > 0:
@@ -265,12 +284,13 @@ def check_pos(xc, yc, clip=5, niter=3):
     from the median (iterates niter times). Returns
     the selected frames that were not deviating.
     """
-    xc0, yc0 = np.median(xc), np.median(yc)
+    min_std = 0.1 # To avoid pathological cases
+    xc0, yc0 = np.nanmedian(xc), np.nanmedian(yc)
     r = ((xc-xc0)**2+(yc-yc0)**2)**0.5
     sel = np.ones(r.shape,dtype='?')
     for _n in range(niter):
-        s = np.std(r[sel])
-        sel = r < clip*s
+        s = max(min_std, np.nanstd(r[sel]))
+        sel = r <= clip*s
     nbad = np.sum(sel==0)
     if nbad > 0:
         if nbad < 50:
@@ -293,12 +313,12 @@ def check_motion(xc, lowfrac = 0.5):
     """
     sel = np.ones(xc.shape, dtype='?')
     X = np.array([xc[:-2],xc[1:-1], xc[2:]])
-    s = np.std(X, axis=0)
+    s = np.nanstd(X, axis=0)
     level = np.percentile(s, 100*lowfrac)
     sel[1:-1] = (s < level)
     sel[0], sel[-1] = sel[1], sel[-2]
     ret_str = 'Motion filter ({:.0f}%, {:d} frames): PEAK {:.2f} pix, AVG {:.2f} pix'.format(
-            lowfrac*100, np.sum(sel), level, np.mean(s[sel[1:-1]]))
+            lowfrac*100, np.sum(sel), level, np.nanmean(s[sel[1:-1]]))
     return sel, ret_str
 
 
@@ -308,12 +328,12 @@ def check_val(val, clip=5, niter=3):
     the selected frames that were not deviating.
     """
     sel = np.ones(val.shape,dtype='?')
-    val0 = np.median(val)
+    val0 = np.nanmedian(val)
     for _n in range(niter):
-        s = np.std(val[sel])
-        val0 = np.median(val[sel])        
-        sel = np.abs(val-val0) < clip*s
-    nbad = np.sum(sel==0)
+        s = np.nanstd(val[sel])
+        val0 = np.nanmedian(val[sel])        
+        sel = np.abs(val-val0) <= clip*s
+    nbad = np.nansum(sel==0)
     if nbad > 0:
         if nbad < 50:
             ret_str = 'Bad values ({:d}/{:d}):'.format(nbad, len(sel))
@@ -326,47 +346,43 @@ def check_val(val, clip=5, niter=3):
 
 
 def check_low(val, clip=5, niter=3):
-    """Filters values lower more than clip
-    from the average (iterates niter times). Returns
+    """Filters values lower than clip times the std
+    from the median (iterates niter times). Returns
     the selected frames that were not deviating.
     """
     sel = np.ones(val.shape,dtype='?')
-    val0 = np.median(val)
+    val0 = np.nanmedian(val)
     for _n in range(niter):
-        s = np.std(val[sel])
-        val0 = np.median(val[sel])        
-        sel = ((val0-val) < clip*s)
-    nbad = np.sum(sel==0)
+        s = np.nanstd(val[sel])
+        val0 = np.nanmedian(val[sel])        
+        sel = ((val0-val) <= clip*s)
+    nbad = np.nansum(sel==0)
     if nbad > 0:
         if nbad < 50:
-            ret_str = 'Source missing ({:d}/{:d}):'.format(nbad, len(sel))
+            ret_str = 'Deviant source frames ({:d}/{:d}):'.format(nbad, len(sel))
             ret_str += '{0}'.format(np.where(sel==0)[0].tolist())
         else: 
-            ret_str = 'Source missing: {:d}/{:d}'.format(nbad, len(sel))
+            ret_str = 'Deviant source frames: {:d}/{:d}'.format(nbad, len(sel))
     else:
-        ret_str = 'No frames {:d} with source missing.'.format(len(sel))
+        ret_str = 'No deviant frames out of {:d}.'.format(len(sel))
     return sel, ret_str
 
 
-def rough_contrast(cube, radius=25, mask=None):
+def rough_contrast(cube, radius=25, outrad=30, mask=None):
     """Computes a rouch contrast (flux difference) between pixels
     inside aperture and outside aperture, for each frame. Used
     to determine of source is missing from image or not.
     """
-    if mask is None:
-        xc, yc = cent_flux(np.abs(cube))
-    else:
-        xc, yc = cent_flux(np.abs(cube)*mask)
-    apt_in = cube_apt(cube.shape, radius, xc, yc)
-    apt_out = (apt_in==0)
+    apt_in = cube_apt(cube.shape, radius)
+    apt_out = (apt_in==0)*cube_apt(cube.shape, outrad)
     if mask is not None:
         apt_in *= mask[None,:,:]
         apt_out *= mask[None,:,:]
     inmed = np.zeros(len(cube))
     outmed = np.zeros(len(cube))
     for n in range(len(cube)):
-        inmed[n] = np.percentile(cube[n,apt_in[n]], 90)
-        outmed[n] = np.percentile(cube[n,apt_out[n]], 90)
+        inmed[n] = np.nanpercentile(cube[n,apt_in[n]], 90)
+        outmed[n] = np.nanpercentile(cube[n,apt_out[n]], 90)
     return inmed-outmed
     
 
@@ -393,6 +409,7 @@ def empiric_noise(residual_cube, xc, yc, bg=None, niter=10, sigma_clip=3):
     is constant throughout the time line; e.g. varying
     background noise has to be added.
     """
+    np.nan_to_num(residual_cube, copy=False)
     shift_cube = np.zeros_like(residual_cube)
     noise_cube = np.zeros_like(residual_cube)
     xm = np.nanmedian(xc)
@@ -428,7 +445,7 @@ def integrate_psf(psf_fun, radius=23):
     
 def pix_mat(datacube, noisecube, xc, yc, mask, fscale=None):
     """Turn a data cube into a pixel matrix with columns
-    y-coordinate, x-coordinate, pixel value, pixel value noise
+    x-coordinate, y-coordinate, pixel value, pixel value noise
     the mask can either be a 2D plane or 3D cube (True = select,
     False mask out).
     """
@@ -442,7 +459,7 @@ def pix_mat(datacube, noisecube, xc, yc, mask, fscale=None):
         mask0 = mask
     n0 = 0
     npix = np.sum(mask)
-    pix = np.zeros((totpix, 5))
+    pix = np.zeros((totpix, 4))
 
     if fscale is None:
         fscale = np.ones(len(datacube))
@@ -452,12 +469,25 @@ def pix_mat(datacube, noisecube, xc, yc, mask, fscale=None):
             mask0 = mask[n]
             npix = np.sum(mask0)
         n1 = n0 + npix
-        pix[n0:n1, 0] = ymat[mask0]-yc[n]
-        pix[n0:n1, 1] = xmat[mask0]-xc[n]
+        pix[n0:n1, 0] = xmat[mask0]-xc[n]
+        pix[n0:n1, 1] = ymat[mask0]-yc[n]
         pix[n0:n1, 2] = datacube[n][mask0]/fscale[n]
         pix[n0:n1, 3] = noisecube[n][mask0]/fscale[n]
         n0 = n1
     return pix
+
+
+def resid_smear(data, clip=3, niter=10):
+    """Compute vertical smearing by sigma-clipping 
+    """
+    ind = np.ones(data.shape, dtype='?')
+    for _n in range(niter):
+        fdata = data.copy()
+        fdata[ind==0] = np.nan
+        sigma = np.nanstd(fdata, axis=0)
+        m = np.nanmedian(fdata, axis=0)
+        ind = np.abs(data-m) <= clip*sigma
+    return m
 
 
 def make_maskcube(data_cube, noise_cube, model_cube,
@@ -470,3 +500,6 @@ def make_maskcube(data_cube, noise_cube, model_cube,
     if mask is not None:
         mask_cube *= mask
     return mask_cube        
+
+
+    

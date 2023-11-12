@@ -2,7 +2,7 @@
 
 from .version import __version__
 
-from .analyse import mad, psf_phot_cube, sigma_clip
+from .analyse import psf_phot_cube
 from .cent import (
     flux as cent_flux,
 )
@@ -14,10 +14,10 @@ from .multi_cent import (
 from .multi_psf import fit as multi_psf_fit, fit_binary as multi_psf_fit_binary
 from .pipe_log import PipeLog
 from .read import (
-    imagette_offset, datacube, mask as read_mask, attitude, gain,
-    ron as read_ron, thermFront_2, mjd2bjd, nonlinear, flatfield, starcat,
+    imagette_offset, raw_datacube, attitude, gain,
+    bias_ron_adu, thermFront_2, mjd2bjd, nonlinear, flatfield, starcat,
     save_eigen_fits, save_binary_eigen_fits, sub_image_indices,
-    dark as read_dark
+    dark as read_dark, bad as read_bad
 )
 from .syntstar import star_bg, rotate_position, derotate_position
 from .reduce import (
@@ -28,3 +28,4 @@ from .reduce import (
 )
 from .pipe_control import PipeControl
 from .pipe_param import PipeParam
+from .pipe_statistics import mad, sigma_clip
