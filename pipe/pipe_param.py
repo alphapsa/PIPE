@@ -57,10 +57,10 @@ class PipeParam:
         self.bias = None         # bias in ADU; estimated if not defined
         self.sa_range = sa_range # tuple of 2 integers: Range of subarray indices to
                                  # be considered. If "None", the full array is used.
-        self.mjd2bjd = True      # Use barycentric conversion from MJD to BJD
+        self.mjd2bjd = False     # Use barycentric conversion from MJD to BJD [BUG in new astropy to be circumvented]
         self.binary = False      # If the binary code branch is to be used, requires
                                  # special parameters to be defined, see below
-        self.psf_score = 0.04    # Limits how good the PSF match needs to be
+        self.psf_score = None    # Limits how good the PSF match needs to be
                                  # (lower score = stricter match)
         self.psf_min_num = 10    # Minimum number of PSFs used, irrespective of score
         self.psf_rad = 200       # PSF lib defined out to this integer radius
@@ -68,7 +68,7 @@ class PipeParam:
                                         # text file with PSF library files
         self.nthreads = os.cpu_count()-1    # Number of threads to use; defaulted to 
                                             # the number of system virtual cores - 1
-        self.bg_fit = -1         # Simultaneous background to be fit with PSF:
+        self.bg_fit = 0          # Simultaneous background to be fit with PSF:
                                  # -1: no, 0: constant, [TBD: 1: bilinear plane, 2: parabolic]
         self.resample_im_times = False   # True if the time stamps for imagettes should
                                          # be corrected (early SOC bug) by interpolating
@@ -103,7 +103,7 @@ class PipeParam:
         self.smear_corr = True   # True if smearing is to be corrected
         self.smear_resid_sa = False  # True if residual smearing effect is to be removed
         self.smear_resid_im = False # True if residual smearing effect is to be removed
-        self.remove_static = False  # True if median of residual cube ("static") is to 
+        self.remove_static = True   # True if median of residual cube ("static") is to 
                                     # be subtracted (gets rid of dark current)
         self.pos_static = False  # Only subtract positive static image
         self.flatfield = True    # True if flat field correction should be applied
@@ -185,9 +185,9 @@ class PipeParam:
         self.sa_optimise = False                    # Optimise over range of parameters
                                                     # below -- only if set to True
         self.sa_test_klips = [1,3,5,10]             # Klip values to be tested
-        self.sa_test_fitrads = [25,30,40,45,50,60]  # fitrad values to be tested
+        self.sa_test_fitrads = [25,30,40,50,60]  # fitrad values to be tested
         self.sa_test_BG = True                      # Vary fit background?
-        self.sa_test_Dark = False                   # Vary subtract dark?
+        self.sa_test_Dark = True                    # Vary subtract dark?
         self.sa_test_Stat = True                    # Vary subtract static residual?
 
         self.im_optimise = False                    # Optimise over range of parameters
@@ -195,7 +195,7 @@ class PipeParam:
         self.im_test_klips = [1,3,5,10]             # Klip values to be tested
         self.im_test_fitrads = [25,30]              # fitrad values to be tested
         self.im_test_BG = True                      # Vary fit background?
-        self.im_test_Dark = False                   # Vary subtract dark?
+        self.im_test_Dark = True                    # Vary subtract dark?
         self.im_test_Stat = True                    # Vary subtract static residual?
 
 
