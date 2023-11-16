@@ -11,7 +11,6 @@ Multi-threaded and calls the psf_worker module.
 
 import numpy as np
 import multiprocessing as mp
-import pickle
 from .psf_worker import make_psf_spline
 from .reduce import check_val, aperture
 from .analyse import find_orbits
@@ -263,8 +262,12 @@ class MultiPSFMaker:
                                                 exptime=exptime,
                                                 outdir=outdir)
             self.pp.mess(f'Saving PSF {n}/{N} to \'{filename}\'')        
-            with open(filename, 'wb') as fp:
-                pickle.dump(psf_lib[n], fp)
+
+            spl = psf_lib[n]
+            tck = spl.tck
+            deg = spl.degrees
+            outdata = np.array((tck[0], tck[1], tck[2], deg[0], deg[1]), dtype=object)
+            np.save(filename, outdata)
 
 
  

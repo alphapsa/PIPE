@@ -143,18 +143,18 @@ class PSF_Library:
     
         if serial is None:
             for serial in range(self.serial_limit):
-                filename = os.path.join(dirname, part1 + '_{:04d}.pkl'.format(serial))
+                filename = os.path.join(dirname, part1 + '_{:04d}.npy'.format(serial))
                 if not os.path.isfile(filename):
                     break
     
-        return os.path.join(dirname, part1 + f'_{serial}.pkl')
+        return os.path.join(dirname, part1 + f'_{serial}.npy')
 
 
 def params_from_filename(filename):
     """Extracts parameters from filename of the format
-     {xc}x{yc}/psf_{Teff}K_{TF2}K_{mjd}_{exptime}_{serial}.pkl
+     {xc}x{yc}/psf_{Teff}K_{TF2}K_{mjd}_{exptime}_{serial}.npy
      012345678901234567890123456789012345678901234567890123456789
-    '291x830/psf_05690K_18.00C_59323_04.4_0005.pkl' (as an example)
+    '291x830/psf_05690K_18.00C_59323_04.4_0005.npy' (as an example)
     """
     xc  = int(filename[:3])
     yc  = int(filename[4:7])
