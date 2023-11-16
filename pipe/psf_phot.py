@@ -2043,11 +2043,6 @@ class PsfPhot:
         hdul.writeto(os.path.join(self.pps.outdir, filename), overwrite=True)
         
         
-    def save_psf(self, filename, psf_fun, name=''):
-        self.mess('Saving {:s} PSF to \'{:s}\''.format(name, filename))
-        pickle.dump(psf_fun, open(filename, 'wb'))        
-
-
     def compute_residuals_sa(self):
         """Subtract model from data and return cube
         of residuals

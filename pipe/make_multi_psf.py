@@ -250,8 +250,8 @@ class MultiPSFMaker:
 
 
     def save_psf(self, psf_lib, xc, yc, Teff, TF2, MJD, exptime, outdir=None):
-        """Save a pickled file of the PSF list psf_lib. Lib_num is
-        an arbitrary version number used in the filename.
+        """Save PSF spline coefficients in a file for each PSF in the list psf_lib.
+        Lib_num is an arbitrary version number used in the filename.
         """
         N = len(psf_lib)
 

@@ -7,7 +7,6 @@ Created on Tue Jun  2 22:57:13 2020
 Top level routines for using PIPE, to be called by scripts etc.
 """
 import os
-import pickle
 import numpy as np
 from .psf_phot import PsfPhot
 from .read import lightcurve

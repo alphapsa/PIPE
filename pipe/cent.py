@@ -16,7 +16,7 @@ from skimage import restoration
 import warnings
 
 
-__all__ = ['flux', 'deconvolve', 'lucy', 'psf', 'deconvolve', 'binary_lucy', 'binary_psf', 'binary_psf_fix']
+__all__ = ['flux', 'lucy', 'psf', 'binary_lucy', 'binary_psf', 'binary_psf_fix']
 
 
 def flux(cube):
@@ -59,22 +59,6 @@ def flux_frame(frame, xi, yi, rad):
     xcent = np.nansum(subim * x[None, :]) / imsum + xi - rad
     ycent = np.nansum(subim * x[:, None]) / imsum + yi - rad
     return xcent, ycent
-
-
-def deconvolve(psf_frame, frame, xi, yi, rad=15, subrad=3):
-    """Computes center of flux of the deconvolved frame. Particularly useful for
-    crowded fields. psf_frame is a PSF model evauilated on a grid of the same scale
-    (per pixel) as the frame, but that can be smaller. xc, yc are initial guess
-    coordinates and rad is the search radius around guess. subrad is the refined
-    radius used for centre-of-flux computation. Returns estimated x, y coordinates.
-    """
-    image = frame/np.nanmax(frame) # Normalisation required for deconvolution
-    image *= image > 0
-    user_params = {'threshold':1e-6, 'min_num_iter':100}
-    deconv, _  = restoration.unsupervised_wiener(image, psf_frame, user_params=user_params)
-    xm, ym = max_frame(deconv, xi, yi, rad=rad)
-    xc, yc = flux_frame(deconv, xm, ym, rad=subrad)
-    return xc, yc
 
 
 def lucy(psf_frame, frame, xi, yi, rad=15, subrad=3, niter=100):
