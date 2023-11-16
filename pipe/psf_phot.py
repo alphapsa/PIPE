@@ -1449,50 +1449,12 @@ class PsfPhot:
         return ixc, iyc
 
 
-    def cent_target(self, data_cube):
+    def cent_deconv(self, datacube):
         """Find centre in pixel coordinates for target within pre-defined
         radius (pps.centfit). Uses centre of flux on brightest point source
         in area in deconvolved image. Returns x, y pixel coordinates of centre.
         """
         self.mess('Compute centroids  (multi {:d} threads)'.format(self.pps.nthreads))
-        xi = int(data_cube.shape[2]*0.5)
-        yi = int(data_cube.shape[1]*0.5)
-        xc, yc = multi_cent_deconvolve(self.centre_psf,
-                                  data_cube,
-                                  xi, yi,
-                                  radius=self.pps.centfit_rad,
-                                  subrad=self.pps.centfit_subrad,
-                                  nthreads=self.pps.nthreads)
-        ind = sigma_clip(xc) * sigma_clip(yc)
-        self.mess('Centroid std: ({:.3f}, {:.3f})'.format(np.std(xc[ind]),
-                                                     np.std(yc[ind])))
-        return xc, yc
-
-
-    def cent_target_psf_refine(self, data_cube, noise_cube, init_xc, init_yc, mask, psf_norm):
-        """Use PSF fitting to refine centres in data_cube. Works best when motion blur is
-        insignificant. uses initial (x,y) coordinates, a noise cube, mask, and an initial
-        normalisation factor for quicker convergence.
-        Returns refined x, y pixel coordinates of centre.     
-        """
-        self.mess('Refine centers with PSF fit  (multi {:d} threads)'.format(self.pps.nthreads))
-        xc, yc = multi_cent_psf(self.centre_psf,
-                                data_cube,
-                                noise_cube,
-                                init_xc, init_yc,
-                                mask=mask,
-                                radius=self.pps.fitrad,
-                                norm=psf_norm,
-                                nthreads=self.pps.nthreads)
-        ind = sigma_clip(xc) * sigma_clip(yc)
-        self.mess('PSF centre std: ({:.3f}, {:.3f})'.format(np.std(xc[ind]),
-                                                     np.std(yc[ind])))
-        return xc, yc
-
-    def cent_deconv(self, datacube):
-        """Use PSF deconvolution to find centres of PSF in datacube. Assummes
-        brightest star in central area is target.
-        """
         xi = int(datacube[0].shape[1]*0.5)
         yi = int(datacube[0].shape[0]*0.5)
         xc, yc = multi_cent_deconvolve(self.centre_psf,
@@ -1501,9 +1463,9 @@ class PsfPhot:
                                   radius=self.pps.centfit_rad,
                                   subrad=self.pps.centfit_subrad,
                                   nthreads=self.pps.nthreads)
-        # ind = sigma_clip(xc) * sigma_clip(yc)
-        # self.mess('SA cent std: ({:.3f}, {:.3f})'.format(np.std(xc[ind]),
-        #                                              np.std(yc[ind])))
+        ind = sigma_clip(xc) * sigma_clip(yc)
+        self.mess('SA cent std: ({:.3f}, {:.3f})'.format(np.std(xc[ind]),
+                                                      np.std(yc[ind])))
         return xc, yc
 
 
