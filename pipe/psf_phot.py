@@ -739,7 +739,7 @@ class PsfPhot:
             self.save_residuals_im('')
 
         if self.pps.save_bg_cube:
-            self.save_bg_sa('')
+            self.save_bg_im('')
 
         if self.pps.save_bg_models:
             self.save_bg_model_sa('')
