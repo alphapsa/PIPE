@@ -249,6 +249,6 @@ class PipeParam:
         # Reference files
         self.file_gain = find_file(("REF_APP_GainCorrection", "gain."), 
                                    datapath=self.calibpath)
-        self.file_nonlin = find_file(("nonlin.txt",), datapath=self.calibpath)
+        self.file_nonlin = find_file(("nonlin.npy",), datapath=self.calibpath)
         self.file_flats = find_file(("flats.fits",), datapath=self.calibpath)
         

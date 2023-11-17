@@ -73,12 +73,12 @@ def fits_cube(filename, level=0):
 
 
 def nonlinear(filename):
-    """Reads the non-linear correction from a text file with
+    """Reads the non-linear correction from a numpy array file with
     ADU vs multiplicative correction. The correction should be
     applied after bias subtraction. Return is an interpolation
     function that gives correction as a function of ADU.
     """
-    nl = np.loadtxt(filename)
+    nl = np.load(filename)
     ifun = interpolate.interp1d(nl[:, 0], nl[:, 1], axis=0,
                                 bounds_error=False,
                                 fill_value=(nl[0, 1], nl[-1, 1]))
