@@ -45,7 +45,7 @@ class star_bg:
         self.psf_mod_Teff = np.array([3000.0, 4000.0, 5000.0, 6000.0, 8000.0, 10000.0])
         self.default_psf_id = 2
         self.psf_lib = psf_lib
-        self.xpos, self.ypos, self.fscale, self.Teff = \
+        self.xpos, self.ypos, self.fscale, self.Teff, self.gaiaID = \
             self.read_starcat(starcatfile, maxrad=maxrad, fscalemin=fscalemin)
         self.catsize = len(self.fscale)
         self.psf_ids, self.psfs = self.assign_psf()
@@ -94,9 +94,10 @@ class star_bg:
                    np.cos(np.deg2rad(cat['DEC'][0])) * 3600.0 / self.pxl_scl)
             dy = ((cat['DEC'][:N]-cat['DEC'][0]) * 3600.0 / self.pxl_scl)
             Teff = cat['T_EFF'][:N]
+            gaiaID = cat['ID'][:N]
 
             sel = fscale > fscalemin
-            return dx[sel], dy[sel], fscale[sel], Teff[sel]
+            return dx[sel], dy[sel], fscale[sel], Teff[sel], gaiaID[sel]
 
         
     def rotate_cat(self, rolldeg, maxrad=None):

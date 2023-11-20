@@ -142,7 +142,7 @@ class PipeParam:
         # Save switches
         self.save_mask_cube = True   # Save mask used to filter out bad
                                      # data (as fits file)
-        self.save_bg_mask_cube = True  # If BG star mask defined, save is as fits
+        self.save_bg_mask_cube = True  # If BG star mask defined, save it as fits
         self.save_resid_cube = True  # Save cube of residuals (as fits file)
         self.save_bg_cube = False    # Save cube of residuals with bg stars (as fits file)
         self.save_bg_models = False  # Save model of background, incl stars, smearing, static
@@ -151,7 +151,8 @@ class PipeParam:
         self.save_psf_list = True    # Save list of filenames of PSFs used
         self.save_motion_mat = False # Save fitted motion blur matrix
         self.save_noise_cubes = False # Save estimated noise (raw/PSF/empiric) as fits cubes
-        self.save_gain = False       # Save  estimated gain table (with columns MJD, gain)
+        self.save_gain = False       # Save estimated gain table (with columns MJD, gain)
+        self.save_bg_star_phot = True # If BG stars are fitted, save their photometry
         self.save_astrometry = False # For binaries, saves text file with separation
         
         # Extraction parameters

@@ -17,7 +17,6 @@ that are called from PsfPhot.
 import os
 import pickle
 import numpy as np
-from scipy.ndimage import shift
 from astropy.io import fits
 
 from .analyse import psf_phot_cube
@@ -25,7 +24,6 @@ from .cent import (
     flux as cent_flux
 )
 from .multi_cent import (
-    psf as multi_cent_psf,
     deconvolve as multi_cent_deconvolve,
     binary_deconvolve as multi_cent_binary_deconvolve,
     binary_psf as multi_cent_binary_psf,
@@ -42,7 +40,7 @@ from .psf_library import PSF_Library
 from .read import (
     imagette_offset, raw_datacube as read_raw_datacube, attitude, gain as read_gain,
     bias_ron_adu, thermFront_2, mjd2bjd, nonlinear, flatfield, starcat,
-    save_eigen_fits, save_binary_eigen_fits, sub_image_indices,
+    save_eigen_fits, save_bg_star_phot_fits, save_binary_eigen_fits, sub_image_indices,
     dark as read_dark, bad as read_bad, PSFs as load_PSFs, read_psf_filenames,
     save_psf_filenames
 )
@@ -1813,6 +1811,18 @@ class PsfPhot:
                                   krn_scl=self.pps.motion_step,
                                   krn_rad=self.pps.motion_nsteps,
                                   nthreads=self.pps.nthreads)
+        if len(starids) > 0 and self.pps.save_bg_star_phot:
+            gaiaID = [self.starcat.gaiaID[starid] for starid in starids]
+            fluxes = np.zeros((len(self.sa_workcat), len(starids)))
+            for n in range(len(self.sa_workcat)):
+                fluxes[n] = self.sa_workcat[n].fscale[starids]
+            filename = os.path.join(self.pps.outdir, 'bg_star_photometry_sa.fits')
+            save_bg_star_phot_fits(filename,
+                                self.sa_att[:,0],
+                                self.mjd2bjd(self.sa_att[:,0]),
+                                fluxes,
+                                gaiaID,
+                                self.sa_hdr)
 
 
     def refine_star_bg_im(self):
@@ -1837,9 +1847,18 @@ class PsfPhot:
                                   krn_scl=self.pps.motion_step,
                                   krn_rad=self.pps.motion_nsteps,
                                   nthreads=self.pps.nthreads)
-
-
-
+        if len(starids) > 0 and self.pps.save_bg_star_phot:
+            gaiaID = [self.starcat.gaiaID[starid] for starid in starids]
+            fluxes = np.zeros((len(self.im_workcat), len(starids)))
+            for n in range(len(self.im_workcat)):
+                fluxes[n] = self.im_workcat[n].fscale[starids]
+            filename = os.path.join(self.pps.outdir, 'bg_star_photometry_im.fits')
+            save_bg_star_phot_fits(filename,
+                                self.im_att[:,0],
+                                self.mjd2bjd(self.im_att[:,0]),
+                                fluxes,
+                                gaiaID,
+                                self.im_hdr)
 
 
     def has_source(self, data, mask=None, clip=5, niter=10):

@@ -340,6 +340,25 @@ def imagette_offset(filename, frame_range=None):
     # raise Exception('[imagette_offset] Error: {:s} not found'.format(filename))
 
 
+
+def save_bg_star_phot_fits(filename, t, bjd, fluxes, gaia_IDs, header):
+    """Save lightcurve data of fitted background stars, as defined by
+    arguments, to fits table in binary format. The stars are identified by 
+    their Gaia ID numbers in the comment for respective fits-column
+    """
+    c = []
+    c.append(fits.Column(name='MJD_TIME', format='D', unit='day', array=t))
+    c.append(fits.Column(name='BJD_TIME', format='D', unit='day', array=bjd))
+    for n in range(fluxes.shape[1]):
+        c.append(fits.Column(name='f{:d}'.format(n), format='D', unit='electrons',
+                             array=fluxes[:, n]))
+    tab = fits.BinTableHDU.from_columns(c, header=header)
+    for n in range(fluxes.shape[1]):
+        key = f'TTYPE{n+3}'
+        tab.header[key] = (tab.header[key], f'Gaia {gaia_IDs[n]}')
+    tab.writeto(filename, overwrite=True, checksum=True)
+
+
 def save_eigen_fits(filename, t, bjd, sc, err, bg, roll, xc, yc, flag,
                     w, thermFront_2, header):
     """Save lightcurve data as defined by arguments to fits table in binary
