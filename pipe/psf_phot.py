@@ -42,7 +42,7 @@ from .read import (
     bias_ron_adu, thermFront_2, mjd2bjd, nonlinear, flatfield, starcat,
     save_eigen_fits, save_bg_star_phot_fits, save_binary_eigen_fits, sub_image_indices,
     dark as read_dark, bad as read_bad, PSFs as load_PSFs, read_psf_filenames,
-    save_psf_filenames
+    save_psf_filenames, save_cube_fits
 )
 from .spline_pca import SplinePCA
 from .syntstar import star_bg, rotate_position, derotate_position, psf_radii
@@ -257,7 +257,7 @@ class PsfPhot:
             save_psf_filenames(os.path.join(self.pps.outdir, 'psf_filenames.txt'), psf_files)
 
         self.mess('PCA decomposing PSFs into {:d} components'.format(num_eigen))
-        spca = SplinePCA(psflist, num_eigen=num_eigen)
+        spca = SplinePCA(psflist, num_eigen=num_eigen, radius=self.pps.normrad)
         eigen_splines = spca.get_eigen_spline_lib()
         self.eigen_psf = [psf_model(psf_spl) for psf_spl in eigen_splines]
         self.psf = self.eigen_psf[0]
@@ -265,6 +265,13 @@ class PsfPhot:
             self.centre_psf = psf_model(load_PSFs([self.pps.centre_psf_filename], self.psf_lib.psf_ref_path)[0])
         else:
             self.centre_psf = self.psf
+
+        if self.pps.save_psf_pc:
+            x = np.linspace(-100, 100, 201)
+            pc_cube = np.zeros((len(self.eigen_psf), len(x), len(x)))
+            for n in range(len(pc_cube)):
+                pc_cube[n] = self.eigen_psf[n](x, x, circular=True)
+            self.save_cube_fits('psf_pcs.fits', pc_cube)
 
 
     def pre_process(self):
@@ -2019,11 +2026,9 @@ class PsfPhot:
     def save_cube_fits(self, filename, cube):
         """Save a data cube as a fits file.
         """
-        hdu = fits.PrimaryHDU(cube)
-        hdul = fits.HDUList([hdu])
-        hdul.writeto(os.path.join(self.pps.outdir, filename), overwrite=True)
-        
-        
+        save_cube_fits(os.path.join(self.pps.outdir, filename), cube)
+
+
     def compute_residuals_sa(self):
         """Subtract model from data and return cube
         of residuals

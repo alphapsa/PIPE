@@ -147,7 +147,7 @@ class PSF_Library:
                 if not os.path.isfile(filename):
                     break
     
-        return os.path.join(dirname, part1 + f'_{serial}.npy')
+        return os.path.join(dirname, part1 + '_{:04d}.npy'.format(serial))
 
 
 def params_from_filename(filename):

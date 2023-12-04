@@ -124,8 +124,8 @@ class PipeParam:
         self.cti_expo = -0.65      # CTI exponent
         self.cti_lim = 0.0333      # Limiting CTI
 
-        self.empiric_noise = False # Use noise estimated from PSF residuals in time
-                                   # series rather than assuming photon statistics
+        self.empiric_noise = True # Use noise estimated from PSF residuals in time
+                                  # series rather than assuming photon statistics
         # Binary parameters
         self.secondary = 1       # Entry of secondary in starcat (primary is
                                  # always entry 0)
@@ -149,6 +149,7 @@ class PipeParam:
         self.save_static = False     # Save derived static image as fits file
         self.save_psfmodel = False   # Save fitted model of PSF cube
         self.save_psf_list = True    # Save list of filenames of PSFs used
+        self.save_psf_pc = False     # Save image cube of PSF principal components
         self.save_motion_mat = False # Save fitted motion blur matrix
         self.save_noise_cubes = False # Save estimated noise (raw/PSF/empiric) as fits cubes
         self.save_gain = False       # Save estimated gain table (with columns MJD, gain)

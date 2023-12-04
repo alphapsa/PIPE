@@ -340,6 +340,13 @@ def imagette_offset(filename, frame_range=None):
     # raise Exception('[imagette_offset] Error: {:s} not found'.format(filename))
 
 
+def save_cube_fits(filename, cube):
+    """Save a data cube as a fits file.
+    """
+    hdu = fits.PrimaryHDU(cube)
+    hdul = fits.HDUList([hdu])
+    hdul.writeto(filename, overwrite=True)
+
 
 def save_bg_star_phot_fits(filename, t, bjd, fluxes, gaia_IDs, header):
     """Save lightcurve data of fitted background stars, as defined by
