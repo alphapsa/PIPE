@@ -1038,7 +1038,8 @@ class PsfPhot:
         self.sa_mask_cube = np.ones(self.sa_debias.shape, dtype='?')
         if self.pps.mask_badpix:
             self.mess(f'Load mask [{self.pps.mask_level}]')
-            mask = read_bad(self.pps.calibpath, np.median(self.sa_mjd), self.sa_off, self.sa_mask.shape)
+            mask, filename = read_bad(self.pps.calibpath, np.median(self.sa_mjd), self.sa_off, self.sa_mask.shape)
+            self.mess('Bad pixelmap \'{:s}\''.format(filename))
             if self.pps.mask_level in [-2, -1, 3, 2, 1]:
                 self.sa_mask *= (mask!=-2)
             if self.pps.mask_level in [-1, 3, 2, 1]:
@@ -1081,7 +1082,10 @@ class PsfPhot:
                 self.im_dark_err = self.im_dark
             return
         self.mess('Reading dark frames')
-        dark, dark_err = read_dark(self.pps.calibpath, np.median(self.sa_mjd), self.sa_off, self.sa_apt.shape)
+        dark, dark_err, filename0, filename1 = read_dark(self.pps.calibpath, np.median(self.sa_mjd),
+                                                         self.sa_off, self.sa_apt.shape)
+        self.mess('First dark frame \'{:s}\''.format(filename0))
+        self.mess('Second dark frame \'{:s}\''.format(filename0))
 
         # Remove pixels for dark current correction
         sel = (dark/dark_err < self.pps.dark_min_snr) * (dark < self.pps.dark_min_level)

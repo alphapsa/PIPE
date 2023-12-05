@@ -297,7 +297,7 @@ def dark(darkpath, mjd, offset, shape):
     t = (mjd-mjds[n0])/(mjds[n1]-mjds[n0])
     dark = (1-t)*dark0 + t*dark1
     dark_err = ((1-t)**2*dark_err0**2 + t**2*dark_err1**2)**0.5
-    return dark, dark_err
+    return dark, dark_err, darkfiles[n0], darkfiles[n1]
 
 
 def bad(badpath, mjd, offset, shape):
@@ -323,7 +323,7 @@ def bad(badpath, mjd, offset, shape):
     i0, i1, j0, j1 = sub_image_indices(offset, shape)
     with fits.open(badfiles[n]) as hdul:
         bad = hdul[1].data[j0:j1, i0:i1].copy()
-    return bad
+    return bad, badfiles[n]
 
 
 def imagette_offset(filename, frame_range=None):
