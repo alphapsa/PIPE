@@ -369,7 +369,9 @@ class PsfPhot:
         i0 = int(datacube.shape[2]*0.5)-radius
         v = np.arange(side)
         for n in range(len(datacube)):
-            psf_frame = psf_mod(v-x[n], v-y[n]) + smear[n][None,i0:(i0+side)]
+            psf_frame = psf_mod(v-x[n], v-y[n])
+            if i0 > 0:
+                psf_frame += smear[n][None,i0:(i0+side)]
             psf_flux[n] = np.sum(psf_frame*apt)
 
         median_flux = np.median(data_flux / (bg_flux + psf_flux))
