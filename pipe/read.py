@@ -289,7 +289,7 @@ def dark(darkpath, mjd, offset, shape):
         dark0 = hdul[1].data[0, j0:j1, i0:i1].copy()
         dark_err0 = hdul[1].data[1, j0:j1, i0:i1].copy()
     if n0 == n1:
-        return dark0, dark_err0
+        return dark0, dark_err0, darkfiles[n0], darkfiles[n1]
     with fits.open(darkfiles[n1]) as hdul:
         dark1 = hdul[1].data[0, j0:j1, i0:i1].copy()
         dark_err1 = hdul[1].data[1, j0:j1, i0:i1].copy()

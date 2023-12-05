@@ -1085,7 +1085,7 @@ class PsfPhot:
         dark, dark_err, filename0, filename1 = read_dark(self.pps.calibpath, np.median(self.sa_mjd),
                                                          self.sa_off, self.sa_apt.shape)
         self.mess('First dark frame \'{:s}\''.format(filename0))
-        self.mess('Second dark frame \'{:s}\''.format(filename0))
+        self.mess('Second dark frame \'{:s}\''.format(filename1))
 
         # Remove pixels for dark current correction
         sel = (dark/dark_err < self.pps.dark_min_snr) * (dark < self.pps.dark_min_level)
