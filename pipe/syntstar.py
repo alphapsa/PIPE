@@ -21,12 +21,12 @@ class WorkCat:
     """Data class for processed catalog data for a single frame that are
     relevantfor producing a star background.
     """
-    def __init__(self, x, y, fscale, dxs, dys, star_rad):
+    def __init__(self, x, y, fscale, dxs, dys, star_radii):
         self.catsize = len(x)
         self.x = x                          # Detector coordinate in frame, one entry per star
         self.y = y                          # (roll rotated, target jitter offset)
         self.fscale = fscale                # Flux relative to target, one entry per star
-        self.rad = star_rad                 # Defined PSF radius of star
+        self.rad = star_radii                 # Defined PSF radius of star
         self.dxs = dxs  # List of arrays, containing offsets of PSFs per star
         self.dys = dys  # List of arrays, containing offsets of PSFs per star
         self.coeff = self.catsize*[None]    # List of coefficients for composite PSF
