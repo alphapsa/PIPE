@@ -1201,7 +1201,8 @@ class PsfPhot:
                                         psf_lib=self.psf_lib,
                                         maxrad=maxrad,
                                         fscalemin=self.pps.limflux,
-                                        pixel_scale=self.pps.pixel_scale)
+                                        pixel_scale=self.pps.pixel_scale,
+                                        star_rad_scale = self.pps.star_rad_scale)
         self.mess(f'{self.starcat.catsize} stars loaded')
 
 

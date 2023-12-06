@@ -21,14 +21,12 @@ class WorkCat:
     """Data class for processed catalog data for a single frame that are
     relevantfor producing a star background.
     """
-    def __init__(self,
-                 x, y,
-                 fscale,
-                 dxs, dys):
+    def __init__(self, x, y, fscale, dxs, dys, star_rad):
         self.catsize = len(x)
         self.x = x                          # Detector coordinate in frame, one entry per star
         self.y = y                          # (roll rotated, target jitter offset)
         self.fscale = fscale                # Flux relative to target, one entry per star
+        self.rad = star_rad                 # Defined PSF radius of star
         self.dxs = dxs  # List of arrays, containing offsets of PSFs per star
         self.dys = dys  # List of arrays, containing offsets of PSFs per star
         self.coeff = self.catsize*[None]    # List of coefficients for composite PSF
@@ -40,12 +38,13 @@ class star_bg:
     rotational blurring and computes smearing trails.
     """
     def __init__(self, starcatfile, psf_lib, maxrad=None,
-                 fscalemin=1e-5, pixel_scale=1.01):
+                 fscalemin=1e-5, pixel_scale=1.01, star_rad_scale=1.0):
         self.pxl_scl = pixel_scale    # CHEOPS pixel scale, arcsec/pixel
         self.psf_mod_Teff = np.array([3000.0, 4000.0, 5000.0, 6000.0, 8000.0, 10000.0])
         self.default_psf_id = 2
         self.psf_lib = psf_lib
-        self.xpos, self.ypos, self.fscale, self.Teff, self.gaiaID = \
+        self.star_rad_scale = star_rad_scale
+        self.xpos, self.ypos, self.fscale, self.star_radii, self.Teff, self.gaiaID = \
             self.read_starcat(starcatfile, maxrad=maxrad, fscalemin=fscalemin)
         self.catsize = len(self.fscale)
         self.psf_ids, self.psfs = self.assign_psf()
@@ -95,9 +94,9 @@ class star_bg:
             dy = ((cat['DEC'][:N]-cat['DEC'][0]) * 3600.0 / self.pxl_scl)
             Teff = cat['T_EFF'][:N]
             gaiaID = cat['ID'][:N]
-
             sel = fscale > fscalemin
-            return dx[sel], dy[sel], fscale[sel], Teff[sel], gaiaID[sel]
+            star_rads = psf_radii(fscale[sel]*self.star_rad_scale)
+            return dx[sel], dy[sel], fscale[sel], star_rads, Teff[sel], gaiaID[sel]
 
         
     def rotate_cat(self, rolldeg, maxrad=None):
@@ -106,9 +105,9 @@ class star_bg:
         new relative rotated pixel coordinates (dx, dy).
         """
         if maxrad is not None:
-            r2 = self.xpos**2+self.ypos**2
-            Nmax = np.searchsorted(r2, maxrad**2)
-            return rotate_position(self.xpos[:Nmax], self.ypos[:Nmax], rolldeg)
+            r = (self.xpos**2+self.ypos**2)**.5 
+            sel = (r <= (maxrad + self.star_radii))
+            return rotate_position(self.xpos[sel], self.ypos[sel], rolldeg)
         return rotate_position(self.xpos, self.ypos, rolldeg)
 
     
@@ -161,8 +160,7 @@ class star_bg:
             # Skip faint stars
             if self.fscale[n] < limflux: continue
             
-            psf_rad = psf_radii(self.fscale[n])
-            inds = find_area_inds(x0 + dx[n], y0 + dy[n], shape=shape, radius=psf_rad)
+            inds = find_area_inds(x0 + dx[n], y0 + dy[n], shape=shape, radius=self.star_radii[n])
             if inds is None:
                 continue
             else:
@@ -175,7 +173,7 @@ class star_bg:
             if psf_mat.ndim == 1:
                 psf_mat = np.reshape(psf_mat, (1, len(psf_mat)))            
             xmat,ymat = np.meshgrid(ddx,ddy)
-            psf_mat[xmat**2+ymat**2 > psf_rad**2] = 0
+            psf_mat[xmat**2+ymat**2 > self.star_radii[n]**2] = 0
             ret_img[j0:j1,i0:i1] += self.fscale[n] * psf_mat
         return ret_img
 
@@ -189,6 +187,7 @@ class star_bg:
         x, y = self.rotate_cat(rolldeg, maxrad=maxrad)
         Nstars = len(x)
         fscale = self.fscale[:Nstars].copy()
+        star_radii = self.psf_radii[:Nstars].copy()
         dxs = []
         dys = []
 
@@ -206,8 +205,7 @@ class star_bg:
                 dys.append(np.zeros(1))
 
         return WorkCat(x=x+x0, y=y+y0, fscale=fscale,
-                 dxs=dxs,
-                 dys=dys)
+                 dxs=dxs, dys=dys, star_radii=star_radii)
 
 
     def smear(self, x0, y0, rolldeg, shape, limflux=1e-2):
@@ -238,7 +236,7 @@ def refine_bg_model(starids, data_frame, noise, mask, model, psf_norm,
 #                            dxs=work_cat.dxs[star_id], dys=work_cat.dys[star_id])
         psf_smear = MultiPSF(psf_mod=psf_mod, dxs=work_cat.dxs[star_id],
                              dys=work_cat.dys[star_id])
-        psf_rad = psf_radii(work_cat.fscale[star_id])
+        psf_rad = work_cat.rad[star_id]
         dist = ((work_cat.x[star_id] - 0.5*data_frame.shape[1])**2 + 
                 (work_cat.y[star_id] - 0.5*data_frame.shape[0])**2)**0.5
         if dist > 0.5*np.min(data_frame.shape):
@@ -321,7 +319,7 @@ def make_bg_frame(shape, work_cat, psf_ids, psfs, skip=[0], kx=None, ky=None):
     star entries (those that then have coefficients defined in
     work_cat). Returns produced frame according to shape.
     """
-    radii = np.array(psf_radii(work_cat.fscale), dtype='int')
+    radii = np.array(work_cat.rad, dtype='int')
     frame = np.zeros(shape)
     for n in range(work_cat.catsize):
         if n in skip:
@@ -350,7 +348,7 @@ def make_single_star_frame(shape, work_cat, psf_mod, star_id, kx=None, ky=None):
     star entries (those that then have coefficients defined in
     work_cat). Returns produced frame according to shape.
     """
-    radius = np.array(psf_radii(work_cat.fscale[star_id]), dtype='int')
+    radius = np.array(work_cat.rad[star_id], dtype='int')
     frame = np.zeros(shape)
     if kx is not None and work_cat.coeff[star_id] is not None:
         kmat = (work_cat.coeff[star_id], kx, ky)

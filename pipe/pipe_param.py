@@ -76,7 +76,7 @@ class PipeParam:
                                          # reprocessed 2021 or later.
         self.bgstars = True      # True if background stars are to be subtracted
         self.limflux = 1e-5      # Include bgstars down to this fraction of the target flux
-        self.bg_psf_rad = None   # Define PSF of BG stars to this radius (in pix). If 'None', use heuristic.
+        self.star_rad_scale = 1.0 # Use this multiplicative factor in heuristic for BG PSF radii
         self.fit_bgstars = True  # True if background stars are to be fitted
         self.lim_fit = 0.01      # Attempt to fit for position and photometry for bgstars down
                                  # to this fraction of target flux                                 
