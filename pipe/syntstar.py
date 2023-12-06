@@ -187,7 +187,7 @@ class star_bg:
         x, y = self.rotate_cat(rolldeg, maxrad=maxrad)
         Nstars = len(x)
         fscale = self.fscale[:Nstars].copy()
-        star_radii = self.psf_radii[:Nstars].copy()
+        star_radii = self.star_radii[:Nstars].copy()
         dxs = []
         dys = []
 
