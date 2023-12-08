@@ -1098,7 +1098,7 @@ class PsfPhot:
 
         self.sa_dark = dark * self.sa_hdr['TEXPTIME'] * self.sa_apt
         self.sa_dark_err = dark_err * self.sa_hdr['TEXPTIME'] * self.sa_apt
-        self.mess('Dark current defined for {:d}/{:d} = {:.2f} pixels [sa]'.format(
+        self.mess('Dark current defined for {:d}/{:d} = {:.2f}% pixels [sa]'.format(
             np.sum(self.sa_dark > 0), np.sum(self.sa_apt > 0),
             100.0 * np.sum(self.sa_dark > 0) / np.sum(self.sa_apt > 0)))
 
