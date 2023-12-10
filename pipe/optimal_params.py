@@ -60,7 +60,7 @@ class TestParams:
 class FindOptimal:
     def __init__(self, klips, fitrads, bBG, bDark, bStat):
         # Parameters to test
-        self.klips = np.array(klips, int)      # Number of pirncipal components in PSF fit
+        self.klips = np.array(klips, int)      # Number of principal components in PSF fit
         self.fitrads = np.array(fitrads, int)  # Radii of domain over to fit PSF
         self.bBG = bBG          # Test fit background jointly with PSF?
         self.bDark = bDark      # Test subtract dark?

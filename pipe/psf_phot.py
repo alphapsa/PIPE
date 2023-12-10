@@ -437,6 +437,7 @@ class PsfPhot:
         self.mess('--- Start processing subarray data with eigen')
         self.sa_bg_refined = False
         max_klip = len(self.eigen_psf)
+        self.sa_best_mad = np.inf
 
         def test_iter(params, niter=self.pps.sigma_clip_niter):
             # Reset some state variables that are modified during iteration
@@ -503,20 +504,25 @@ class PsfPhot:
                     self.sa_bg_refined = True
 
             flux, err = self.psf_phot_sa(self.sa_psf_cube, self.pps.fitrad)
-            flag = self.save_results_sa(scale, err, w, sel)
+            flag = self.flag_sa(scale, sel)
 
             sel = (flag==0)
             self.sa_mad = mad(scale[sel])
             self.mess('MAD sa: {:.2f} ppm'.format(mad(scale)))
-            self.mess('MAD sa[flag==0]: {:.2f} ppm'.format(mad(scale[sel])))
+            curr_mad = mad(scale[sel])
+            self.mess('MAD sa[flag==0]: {:.2f} ppm'.format(curr_mad))
             self.sa_flux = scale
             self.sa_sel = sel
+
+            if curr_mad < self.sa_best_mad:
+                self.sa_best_mad = curr_mad
+                self.save_results_sa(scale, err, w, flag)
 
             return scale, dbg, flux, err, sel, w
 
         klip = min(self.pps.klip, max_klip)
         nominal = TestParams(klip=klip, fitrad=self.pps.fitrad, bBG=(self.pps.bg_fit==0),
-                                bDark=self.pps.darksub, bStat=self.pps.remove_static)
+                             bDark=self.pps.darksub, bStat=self.pps.remove_static)
 
         if self.pps.sa_optimise is False:
             scale, dbg, flux, err, sel, w = test_iter(nominal)
@@ -567,14 +573,15 @@ class PsfPhot:
         self.mess('--- Start processing imagette data with eigen')
         self.im_bg_refined = False
         max_klip = len(self.eigen_psf)
-
+        self.im_best_mad = np.inf
 
         klip = self.pps.klip
         if klip is None:
             klip = len(self.eigen_psf)
         else:
             klip = min(klip, len(self.eigen_psf))
-        
+
+
         def test_iter(params, niter=self.pps.sigma_clip_niter):
             # Reset some state variables that are modified during iteration
             sel = self.im_cent_sel
@@ -641,14 +648,19 @@ class PsfPhot:
                     self.im_bg_refined = True
 
             flux, err = self.psf_phot_im(self.im_psf_cube, self.pps.fitrad)
-            flag = self.save_results_im(scale, err, w, sel)
+            flag = self.flag_im(scale, sel)
 
             sel = (flag==0)
             self.im_mad = mad(scale[sel])
             self.mess('MAD im: {:.2f} ppm'.format(mad(scale)))
-            self.mess('MAD im[flag==0]: {:.2f} ppm'.format(mad(scale[sel])))
+            curr_mad = mad(scale[sel])
+            self.mess('MAD im[flag==0]: {:.2f} ppm'.format(curr_mad))
             self.im_flux = scale
             self.im_sel = sel
+
+            if curr_mad < self.im_best_mad:
+                self.im_best_mad = curr_mad
+                self.save_results_im(scale, err, w, flag)
 
             return scale, dbg, flux, err, sel, w
 
@@ -690,10 +702,39 @@ class PsfPhot:
         return  scale, dbg, flux, err, sel, w
 
 
-    def save_results_sa(self, scale, err, w, sel):
+    def flag_sa(self, scale, sel):
+        """Computes and return status flags for extracted
+        photometry series (of subarrays).
+        """
+        flagCenter = (self.filter_pos(self.sa_xc, self.sa_yc) == 0)
+        flagBadPix = (self.filter_bad_masks(self.sa_mask_cube, self.sa_apt) == 0)
+        flagFlux = (self.filter_flux(scale) == 0)
+        flagSource = (sel == 0)
+        flagBG = (self.filter_high_bg(self.sa_dbg + self.sa_bg, sel=(flagFlux==0)) == 0)
+        flag = np.zeros(flagCenter.shape, dtype='int8')
+        flag[:] = (1*flagCenter + 2*flagBadPix + 4*flagFlux +
+                    8*flagSource + 16*flagBG)
+        return flag
+
+
+    def flag_im(self, scale, sel):
+        """Computes and return status flags for extracted
+        photometry series (of imagettes).
+        """
+        flagCenter = (self.filter_pos(self.im_xc, self.im_yc) == 0)
+        flagBadPix = (self.filter_bad_masks(self.im_mask_cube, self.im_apt) == 0)
+        flagFlux = (self.filter_flux(scale) == 0)
+        flagSource = (sel == 0)
+        flagBG = (self.filter_high_bg(self.im_dbg + self.im_bg, sel=(flagFlux==0)) == 0)
+        flag = np.zeros(flagCenter.shape, dtype='int8')
+        flag[:] = (1*flagCenter + 2*flagBadPix + 4*flagFlux +
+                    8*flagSource + 16*flagBG)
+        return flag
+
+
+    def save_results_sa(self, scale, err, w, flag):
         """Save data from reduction/extraction processes according to 
-        switches of parameter file. Return status flags for extracted
-        photometry series.
+        switches of parameter file. 
         """        
         if self.pps.save_resid_cube:
             self.save_residuals_sa('')
@@ -703,15 +744,6 @@ class PsfPhot:
 
         if self.pps.save_bg_models:
             self.save_bg_model_sa('')
-
-        flagCenter = (self.filter_pos(self.sa_xc, self.sa_yc) == 0)
-        flagBadPix = (self.filter_bad_masks(self.sa_mask_cube, self.sa_apt) == 0)
-        flagFlux = (self.filter_flux(scale) == 0)
-        flagSource = (sel == 0)
-        flagBG = (self.filter_high_bg(self.sa_dbg + self.sa_bg, sel=(flagFlux==0)) == 0)
-        flag = np.zeros(flagCenter.shape, dtype='int8')
-        flag[:] = (1*flagCenter + 2*flagBadPix + 4*flagFlux +
-                    8*flagSource + 16*flagBG)
 
         self.save_eigen_sa(flag, scale, scale*err,
                            self.sa_dbg + self.sa_bg, w)
@@ -733,10 +765,8 @@ class PsfPhot:
             emp_noise_cube = empiric_noise(res, self.sa_xc, self.sa_yc, self.sa_dbg + self.sa_bg)
             self.save_cube_fits('empiric_noise_sa.fits', emp_noise_cube)
 
-        return flag
 
-
-    def save_results_im(self, scale, err, w, sel):
+    def save_results_im(self, scale, err, w, flag):
         """Save data from reduction/extraction processes according to 
         switches of parameter file. Return status flags for extracted
         photometry series.
@@ -751,15 +781,6 @@ class PsfPhot:
         if self.pps.save_bg_models:
             self.save_bg_model_sa('')
 
-        flagCenter = (self.filter_pos(self.im_xc, self.im_yc) == 0)
-        flagBadPix = (self.filter_bad_masks(self.im_mask_cube, self.im_apt) == 0)
-        flagFlux = (self.filter_flux(scale) == 0)
-        flagSource = (sel == 0)
-        flagBG = (self.filter_high_bg(self.im_dbg + self.im_bg, sel=(flagFlux==0)) == 0)
-        flag = np.zeros(flagCenter.shape, dtype='int8')
-        flag[:] = (1*flagCenter + 2*flagBadPix + 4*flagFlux +
-                    8*flagSource + 16*flagBG)
-        
         self.save_eigen_im(flag, scale, scale*err,
                            self.im_dbg + self.im_bg, w)
         
