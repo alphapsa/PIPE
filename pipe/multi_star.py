@@ -15,6 +15,11 @@ import multiprocessing as mp
 from .syntstar import make_bg_frame, refine_bg_model
 from .syntstar import make_bg_psf_mask, make_bg_circ_mask
 
+try:
+   mp.set_start_method('spawn', force=True)
+except RuntimeError:
+   pass
+
 
 def make_star_bg(shape, psf_ids, psfs, work_cats, skip=[0], krn_scl=0.3, krn_rad=3, nthreads=1):
     in_params = []

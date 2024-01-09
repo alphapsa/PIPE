@@ -17,6 +17,11 @@ from .analyse import find_orbits
 from .psf_model import map_coo, psf_model
 from .pipe_statistics import sigma_clip
 
+try:
+   mp.set_start_method('spawn', force=True)
+except RuntimeError:
+   pass
+
 
 class MultiPSFMaker:
     """ Collects routines to compute the PSF from data contained in 

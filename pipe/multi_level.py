@@ -11,6 +11,12 @@ import numpy as np
 import multiprocessing as mp
 from .level import estimate as level_estimate
 
+try:
+   mp.set_start_method('spawn', force=True)
+except RuntimeError:
+   pass
+
+
 def estimate(data_cube, nthreads=16):
     """Estimate background levels of scattered light for datacube. Assumes 
     background stars have been subtracted or masked. Returns array of estimated

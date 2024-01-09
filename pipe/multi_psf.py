@@ -12,6 +12,11 @@ import numpy as np
 import multiprocessing as mp
 from .psf import fit as psf_fit, fit_binary as psf_fit_binary
 
+try:
+   mp.set_start_method('spawn', force=True)
+except RuntimeError:
+   pass
+
 
 def fit(psf_list, data_cube, noise_cube, mask, xc, yc,
                 fitrad=50, defrad=70, krn_scl=0.3,

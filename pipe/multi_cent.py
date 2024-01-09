@@ -17,6 +17,11 @@ from .cent import (
     binary_lucy as cent_binary_deconvolve
 )
 
+try:
+   mp.set_start_method('spawn', force=True)
+except RuntimeError:
+   pass
+
 
 def deconvolve(psf_spline, cube, xi, yi, radius=30, subrad=3, nthreads=16):
     """Use deconvolution to compute PSF centres of frames in cube. xi, yi

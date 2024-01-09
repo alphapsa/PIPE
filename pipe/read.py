@@ -362,7 +362,7 @@ def save_bg_star_phot_fits(filename, t, bjd, fluxes, gaia_IDs, header):
     tab = fits.BinTableHDU.from_columns(c, header=header)
     for n in range(fluxes.shape[1]):
         key = f'TTYPE{n+3}'
-        tab.header[key] = (tab.header[key], f'Gaia {gaia_IDs[n]}')
+        tab.header[key] = (tab.header[key], f'{gaia_IDs[n]}')
     tab.writeto(filename, overwrite=True, checksum=True)
 
 
