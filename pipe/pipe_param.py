@@ -57,7 +57,7 @@ class PipeParam:
         self.bias = None         # bias in ADU; estimated if not defined
         self.sa_range = sa_range # tuple of 2 integers: Range of subarray indices to
                                  # be considered. If "None", the full array is used.
-        self.mjd2bjd = False     # Use barycentric conversion from MJD to BJD [BUG in new astropy to be circumvented]
+        self.mjd2bjd = True      # Use barycentric conversion from MJD to BJD [BUG in astropy 5.1 to be circumvented]
         self.binary = False      # If the binary code branch is to be used, requires
                                  # special parameters to be defined, see below
         self.psf_score = None    # Limits how good the PSF match needs to be
