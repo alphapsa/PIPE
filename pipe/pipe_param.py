@@ -119,13 +119,11 @@ class PipeParam:
 
         # Charge transfer inefficiency parameters
         self.cti_corr = True       # True if CTI is to be corrected
-        self.cti_t0 = 58800.0      # Zero epoch for CTI detoriation
+        self.cti_t0 = 58800.0      # Zero epoch for CTI deterioration
         self.cti_scale = 0.0016    # CTI scaling paramter
         self.cti_expo = -0.65      # CTI exponent
         self.cti_lim = 0.0333      # Limiting CTI
 
-        self.empiric_noise = True # Use noise estimated from PSF residuals in time
-                                  # series rather than assuming photon statistics
         # Binary parameters
         self.secondary = 1       # Entry of secondary in starcat (primary is
                                  # always entry 0)
@@ -160,7 +158,7 @@ class PipeParam:
         self.klip = 5            # Number of eigen components of PSF to use.
         self.sigma_clip = 15     # The residual/std-factor for masking
         self.sigma_clip_niter = 2    # Number of iterations used for sigma-clipping
-        self.empiric_noise = False   # Use noise determined by statistics on residuals
+        self.empiric_noise = True   # Use noise determined by statistics on residuals
         self.empiric_sigma_clip = 4  # The sigma-clipping to use with empiric noise
         self.block_psf_level = 1e-4  # The level above which the PSF is blocked when
                                      # doing vertical smear correction
