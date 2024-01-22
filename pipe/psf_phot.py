@@ -80,7 +80,11 @@ class PsfPhot:
             if self.pps.file_starcat is None:
                 raise Exception('Without starcat, Teff needs to be defined')
             self.pps.Teff = self.read_Teff()
-        
+
+        # If BLAS is multithreaded, reduce the number of threads used on top level
+        self.nthreads_reduced =  int(max(round(self.pps.nthreads/self.pps.nthreads_blas), 1))
+
+
         # ----------- General variables
         self.eigen_psf = None   # Library of PSF eigen components
         self.psf = None         # Default PSF to be used when not
@@ -88,7 +92,7 @@ class PsfPhot:
         self.starcat = None     # Star Catalogue object containing bg stars 
         self.mjd2bjd = None     # Defines a function to be used to convert
                                 # between MJD and BJD
-        self.cti_corr_fun = None # The CTI correction function, weakly epoch dependent   
+        self.cti_corr_fun = None # The CTI correction function, weakly epoch dependent  
         # ----------- Subarray variables
         self.sa_debias = None   # Cube of DRP calibrated subarray frames
                                 # (bias removed, flatfielded, nonlinear corrected)
@@ -438,7 +442,6 @@ class PsfPhot:
         self.sa_bg_refined = False
         max_klip = len(self.eigen_psf)
         self.sa_best_mad = np.inf
-        nthreads0 = int(max(round(self.pps.nthreads/self.pps.nthreads_blas), 1))
 
         def test_iter(params, niter=self.pps.sigma_clip_niter):
             # Reset some state variables that are modified during iteration
@@ -471,7 +474,7 @@ class PsfPhot:
                                 fitrad=params.fitrad,
                                 defrad=self.pps.psf_rad,
                                 bg_fit=bg_fit,
-                                nthreads=nthreads0,
+                                nthreads=self.nthreads_reduced,
                                 non_negative=self.pps.non_neg_lsq)
                 # Interpolate over frames without source
                 t0 = self.sa_att[sel, 0]
@@ -575,7 +578,6 @@ class PsfPhot:
         self.im_bg_refined = False
         max_klip = len(self.eigen_psf)
         self.im_best_mad = np.inf
-        nthreads0 = int(max(round(self.pps.nthreads/self.pps.nthreads_blas), 1))
 
         klip = self.pps.klip
         if klip is None:
@@ -616,7 +618,7 @@ class PsfPhot:
                                 fitrad=params.fitrad,
                                 defrad=self.pps.psf_rad,
                                 bg_fit=bg_fit,
-                                nthreads=nthreads0, 
+                                nthreads=self.nthreads_reduced, 
                                 non_negative=self.pps.non_neg_lsq)
                 # Interpolate over frames without source
                 t0 = self.im_att[sel, 0]
@@ -1847,7 +1849,7 @@ class PsfPhot:
                                   psfs=self.starcat.psfs,
                                   krn_scl=self.pps.motion_step,
                                   krn_rad=self.pps.motion_nsteps,
-                                  nthreads=self.pps.nthreads)
+                                  nthreads=self.nthreads_reduced)
         if len(starids) > 0 and self.pps.save_bg_star_phot:
             gaiaID = [self.starcat.gaiaID[starid] for starid in starids]
             fluxes = np.zeros((len(self.sa_workcat), len(starids)))
@@ -1883,7 +1885,7 @@ class PsfPhot:
                                   psfs=self.starcat.psfs,
                                   krn_scl=self.pps.motion_step,
                                   krn_rad=self.pps.motion_nsteps,
-                                  nthreads=self.pps.nthreads)
+                                  nthreads=self.nthreads_reduced)
         if len(starids) > 0 and self.pps.save_bg_star_phot:
             gaiaID = [self.starcat.gaiaID[starid] for starid in starids]
             fluxes = np.zeros((len(self.im_workcat), len(starids)))
