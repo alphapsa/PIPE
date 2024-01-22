@@ -30,8 +30,6 @@ def fit(psf_list, data_cube, noise_cube, mask, xc, yc,
     
     Only fit if position is within fitrad from median position.
     """
-    # Psf.fit uses about 6 threads by itself on *windows*
-    nthreads0 = int(max(round(nthreads/6), 1))
     Ndata = len(data_cube)
     xm, ym = np.median(xc), np.median(yc)
     psf_cube = np.zeros(data_cube.shape)
@@ -56,7 +54,7 @@ def fit(psf_list, data_cube, noise_cube, mask, xc, yc,
         inparam.append((psf_list, frame, noise, mask0, xc[n], yc[n], 
                 fitrad, defrad, krn_scl, krn_rad, bg_fit, non_negative))
     
-    with mp.Pool(nthreads0) as p:
+    with mp.Pool(nthreads) as p:
         outparam = p.starmap(psf_fit, inparam)
 
     m = 0

@@ -438,6 +438,7 @@ class PsfPhot:
         self.sa_bg_refined = False
         max_klip = len(self.eigen_psf)
         self.sa_best_mad = np.inf
+        nthreads0 = int(max(round(self.pps.nthreads/self.pps.nthreads_blas), 1))
 
         def test_iter(params, niter=self.pps.sigma_clip_niter):
             # Reset some state variables that are modified during iteration
@@ -470,7 +471,7 @@ class PsfPhot:
                                 fitrad=params.fitrad,
                                 defrad=self.pps.psf_rad,
                                 bg_fit=bg_fit,
-                                nthreads=self.pps.nthreads,
+                                nthreads=nthreads0,
                                 non_negative=self.pps.non_neg_lsq)
                 # Interpolate over frames without source
                 t0 = self.sa_att[sel, 0]
@@ -574,6 +575,7 @@ class PsfPhot:
         self.im_bg_refined = False
         max_klip = len(self.eigen_psf)
         self.im_best_mad = np.inf
+        nthreads0 = int(max(round(self.pps.nthreads/self.pps.nthreads_blas), 1))
 
         klip = self.pps.klip
         if klip is None:
@@ -614,7 +616,7 @@ class PsfPhot:
                                 fitrad=params.fitrad,
                                 defrad=self.pps.psf_rad,
                                 bg_fit=bg_fit,
-                                nthreads=self.pps.nthreads, 
+                                nthreads=nthreads0, 
                                 non_negative=self.pps.non_neg_lsq)
                 # Interpolate over frames without source
                 t0 = self.im_att[sel, 0]
