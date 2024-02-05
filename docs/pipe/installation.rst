@@ -7,7 +7,7 @@ To install PIPE, run::
     cd PIPE
     python setup.py install
 
-PIPE uses python3 and requires the following packages: numpy, scipy, astropy
+PIPE uses python3 and requires the following packages: numpy, scipy, astropy, scikit-image
 
 Required file structure
 +++++++++++++++++++++++
