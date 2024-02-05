@@ -29,3 +29,4 @@ from .reduce import (
 from .pipe_control import PipeControl
 from .pipe_param import PipeParam
 from .pipe_statistics import mad, sigma_clip
+from .config import conf
