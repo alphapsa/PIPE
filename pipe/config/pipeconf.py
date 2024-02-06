@@ -1,6 +1,7 @@
 import json
 import os
 import astropy.config as astropyconfig
+import platform
 
 def cache_dir():
     return astropyconfig.get_cache_dir()
@@ -15,9 +16,12 @@ def get_conf_paths(overwrite=False):
         data_path = input('Please enter a path to the data files\nThe default path is ~/cheops-pipe/Data (press ENTER to use this): ')
         ref_path = input('Please enter a path to the calibration files\nThe default path is ~/cheops-pipe/Ref (press ENTER to use this): ')
         if data_path == '':
-            data_path = os.path.expanduser('~') + '/cheops-pipe/Data'
+            data_path = os.path.join(os.path.expanduser('~'), '/cheops-pipe/Data')
         if ref_path == '':
-            ref_path = os.path.expanduser('~') + '/cheops-pipe/Ref'
+            ref_path = os.path.join(os.path.expanduser('~'), '/cheops-pipe/Ref')
+        if platform.platform().split('-')[0] == 'Windows':
+            data_path = data_path.replace('/','\\')
+            ref_path = ref_path.replace('/', '\\')
         fconf = open(os.path.dirname(__file__) + '/conf.json', 'w')
         fconf.write('{\n')
         fconf.write('\t"data_root" : "' + data_path + '",\n')
