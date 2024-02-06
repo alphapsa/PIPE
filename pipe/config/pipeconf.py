@@ -12,8 +12,8 @@ def get_conf_paths(overwrite=False):
     
     if (not os.path.isfile(conf_path))|(overwrite):
         # First creating a file
-        data_path = input('Please enter a path to the data files\nThe default path is ~/cheops-pipe/Data (press ENTER to use this): ')
-        ref_path = input('Please enter a path to the calibration files\nThe default path is ~/cheops-pipe/Ref (press ENTER to use this): ')
+        data_path = input('Please enter a path to the data files\nPress ENTER to use the default path (' + os.path.join(os.path.expanduser('~'), 'cheops-pipe','Data') + '): ')
+        ref_path = input('Please enter a path to the calibration files\nPress ENTER to use the default path (' + os.path.join(os.path.expanduser('~'), 'cheops-pipe','Ref') + '): ')
         if data_path == '':
             data_path = os.path.join(os.path.expanduser('~'), 'cheops-pipe', 'Data')
         if ref_path == '':
