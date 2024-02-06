@@ -1,6 +1,6 @@
 import json
 import os
-import astropy.config as astropyconfig
+import astropy.config as astropyconfig 
 
 def cache_dir():
     return astropyconfig.get_cache_dir()
@@ -12,18 +12,16 @@ def get_conf_paths(overwrite=False):
     
     if (not os.path.isfile(conf_path))|(overwrite):
         # First creating a file
-        data_path = input('Please enter a path to the data files\nThe default path is ~/cheops-pipe/Data (press ENTER to use this): ')
-        ref_path = input('Please enter a path to the calibration files\nThe default path is ~/cheops-pipe/Ref (press ENTER to use this): ')
+        data_path = input('Please enter a path to the data files\nPress ENTER to use the default path (' + os.path.join(os.path.expanduser('~'), 'cheops-pipe','Data') + '): ')
+        ref_path = input('Please enter a path to the calibration files\nPress ENTER to use the default path (' + os.path.join(os.path.expanduser('~'), 'cheops-pipe','Ref') + '): ')
         if data_path == '':
-            data_path = os.path.expanduser('~') + '/cheops-pipe/Data'
+            data_path = os.path.join(os.path.expanduser('~'), 'cheops-pipe', 'Data')
         if ref_path == '':
-            ref_path = os.path.expanduser('~') + '/cheops-pipe/Ref'
-        fconf = open(os.path.dirname(__file__) + '/conf.json', 'w')
-        fconf.write('{\n')
-        fconf.write('\t"data_root" : "' + data_path + '",\n')
-        fconf.write('\t"ref_lib_data" : "' + ref_path + '"\n')
-        fconf.write('}')
-        fconf.close()
+            ref_path = os.path.join(os.path.expanduser('~'), 'cheops-pipe', 'Ref')
+        all_paths = {}
+        all_paths['data_root'], all_paths['ref_lib_data'] = data_path, ref_path
+        with open(os.path.dirname(__file__) + '/conf.json', 'w') as fconf:
+            json.dump(all_paths, fconf)
         # And loading it
         conf_path = os.path.join(os.path.dirname(__file__), 'conf.json')
 
