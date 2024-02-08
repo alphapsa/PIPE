@@ -470,7 +470,7 @@ class PsfPhot:
                                 fitrad=params.fitrad,
                                 defrad=self.pps.psf_rad,
                                 bg_fit=bg_fit,
-                                nthreads=self.nthreads,
+                                nthreads=self.pps.nthreads,
                                 non_negative=self.pps.non_neg_lsq)
                 # Interpolate over frames without source
                 t0 = self.sa_att[sel, 0]
@@ -614,7 +614,7 @@ class PsfPhot:
                                 fitrad=params.fitrad,
                                 defrad=self.pps.psf_rad,
                                 bg_fit=bg_fit,
-                                nthreads=self.nthreads, 
+                                nthreads=self.pps.nthreads, 
                                 non_negative=self.pps.non_neg_lsq)
                 # Interpolate over frames without source
                 t0 = self.im_att[sel, 0]
@@ -1845,7 +1845,7 @@ class PsfPhot:
                                   psfs=self.starcat.psfs,
                                   krn_scl=self.pps.motion_step,
                                   krn_rad=self.pps.motion_nsteps,
-                                  nthreads=self.nthreads)
+                                  nthreads=self.pps.nthreads)
         if len(starids) > 0 and self.pps.save_bg_star_phot:
             gaiaID = [self.starcat.gaiaID[starid] for starid in starids]
             fluxes = np.zeros((len(self.sa_workcat), len(starids)))
@@ -1881,7 +1881,7 @@ class PsfPhot:
                                   psfs=self.starcat.psfs,
                                   krn_scl=self.pps.motion_step,
                                   krn_rad=self.pps.motion_nsteps,
-                                  nthreads=self.nthreads)
+                                  nthreads=self.pps.nthreads)
         if len(starids) > 0 and self.pps.save_bg_star_phot:
             gaiaID = [self.starcat.gaiaID[starid] for starid in starids]
             fluxes = np.zeros((len(self.im_workcat), len(starids)))
