@@ -68,9 +68,6 @@ class PipeParam:
                                         # text file with PSF library files
         self.nthreads = os.cpu_count()-1    # Number of threads to use; defaulted to 
                                             # the number of system virtual cores - 1
-        self.nthreads_blas = 1  # On some systems, BLAS is multithreaded. This is the number of
-                                # estimated threads it uses. Used to not swamp thread pool.
-                                # On windows, BLAS seems to use 6 threads, on linux 1 thread.
         self.bg_fit = 0          # Simultaneous background to be fit with PSF:
                                  # -1: no, 0: constant, [TBD: 1: bilinear plane, 2: parabolic]
         self.resample_im_times = False   # True if the time stamps for imagettes should
