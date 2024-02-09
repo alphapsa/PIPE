@@ -81,10 +81,6 @@ class PsfPhot:
                 raise Exception('Without starcat, Teff needs to be defined')
             self.pps.Teff = self.read_Teff()
 
-        # If BLAS is multithreaded, reduce the number of threads used on top level
-        self.nthreads_reduced =  int(max(round(self.pps.nthreads/self.pps.nthreads_blas), 1))
-
-
         # ----------- General variables
         self.eigen_psf = None   # Library of PSF eigen components
         self.psf = None         # Default PSF to be used when not
@@ -169,6 +165,10 @@ class PsfPhot:
     def read_data(self):
         """Initialises data from data files
         """
+
+        # Check if optional calibration files are available
+        self.check_calibration_files()
+
         # Define gain, bias, and read-out noise        
         self.make_gain_function()
         self.read_bias_ron()
@@ -474,7 +474,7 @@ class PsfPhot:
                                 fitrad=params.fitrad,
                                 defrad=self.pps.psf_rad,
                                 bg_fit=bg_fit,
-                                nthreads=self.nthreads_reduced,
+                                nthreads=self.pps.nthreads,
                                 non_negative=self.pps.non_neg_lsq)
                 # Interpolate over frames without source
                 t0 = self.sa_att[sel, 0]
@@ -618,7 +618,7 @@ class PsfPhot:
                                 fitrad=params.fitrad,
                                 defrad=self.pps.psf_rad,
                                 bg_fit=bg_fit,
-                                nthreads=self.nthreads_reduced, 
+                                nthreads=self.pps.nthreads, 
                                 non_negative=self.pps.non_neg_lsq)
                 # Interpolate over frames without source
                 t0 = self.im_att[sel, 0]
@@ -1297,7 +1297,7 @@ class PsfPhot:
         target_Teff is the target radiation temperature, used to produce
         a weighted (wavelength-dependent) flatfield. offset is the offset in
         pixels of frame within full detector size, and shape is shape of
-        flatefield. Returns flatfield
+        flatfield. Returns flatfield
         """
         return flatfield(self.pps.file_flats, target_Teff, offset, shape)
 
@@ -1849,7 +1849,7 @@ class PsfPhot:
                                   psfs=self.starcat.psfs,
                                   krn_scl=self.pps.motion_step,
                                   krn_rad=self.pps.motion_nsteps,
-                                  nthreads=self.nthreads_reduced)
+                                  nthreads=self.pps.nthreads)
         if len(starids) > 0 and self.pps.save_bg_star_phot:
             gaiaID = [self.starcat.gaiaID[starid] for starid in starids]
             fluxes = np.zeros((len(self.sa_workcat), len(starids)))
@@ -1885,7 +1885,7 @@ class PsfPhot:
                                   psfs=self.starcat.psfs,
                                   krn_scl=self.pps.motion_step,
                                   krn_rad=self.pps.motion_nsteps,
-                                  nthreads=self.nthreads_reduced)
+                                  nthreads=self.pps.nthreads)
         if len(starids) > 0 and self.pps.save_bg_star_phot:
             gaiaID = [self.starcat.gaiaID[starid] for starid in starids]
             fluxes = np.zeros((len(self.im_workcat), len(starids)))
@@ -2123,6 +2123,32 @@ class PsfPhot:
         """Save bg model including bg stars, smear, and static
         """
         self.save_cube_fits(prefix+'bg_model_im.fits', self.bg_model_im())
+
+
+    def check_calibration_files(self):
+        """Checks what calibration files are available and logs warnings
+        for any missing. Switches of corrections for missing calibrations
+        rather than crash.
+        """
+        if self.pps.file_starcat is None:
+            self.mess("WARNING: No EXT_PRE_StarCatalogue calibration file")
+            self.pps.bgstars = False
+            self.pps.fit_bgstars = False
+
+        if self.pps.file_flats is None:
+            self.mess("WARNING: No REF_APP_FlatFieldTeff calibration file")
+            self.pps.flatfield = False
+
+        if (self.pps.file_gain is None or self.pps.file_hk is None) and self.pps.gain is None:
+            self.mess("WARNING: No REF_APP_GainCorrection or SCI_RAW_HkExtended calibration files")
+            self.mess("Setting gain to 1.95 e/ADU")
+            self.pps.gain = 1.95
+
+        if self.pps.file_nonlin is None:
+            self.mess("WARNING: No nonlin.npy calibration file")
+            self.pps.non_lin = False
+
+
 
 
     #----------- Methods for binary extractions below
@@ -2508,9 +2534,6 @@ class PsfPhot:
         self.separation = np.median(ds)
         self.mess('Astrometry: separation [im] = {:.3f} +/- {:.3f} pix'.format(
                 self.separation, np.std(ds)/len(ds)**.5))
-
-
-
 
 
     def robust_centre_binary_sa(self, psf):

@@ -2,6 +2,17 @@
 
 from .version import __version__
 
+# To avoid numpy using multithreaded BLAS functions,
+# limit its number of trheads to 1 for most of the 
+# popular BLAS packages used by numpy implementations.
+from os import environ
+N_THREADS = '1'
+environ['OMP_NUM_THREADS'] = N_THREADS
+environ['OPENBLAS_NUM_THREADS'] = N_THREADS
+environ['MKL_NUM_THREADS'] = N_THREADS
+environ['VECLIB_MAXIMUM_THREADS'] = N_THREADS
+environ['NUMEXPR_NUM_THREADS'] = N_THREADS
+
 from .analyse import psf_phot_cube
 from .cent import (
     flux as cent_flux,
