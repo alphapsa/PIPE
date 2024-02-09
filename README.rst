@@ -57,6 +57,8 @@ from achieving that. A poorly determined PSF could result in photometric
 performance that is worse than that provided by the DRP. Thus, PIPE needs to
 be run in a supervised mode and is not a replacement for the DRP.
 
+Find the PIPE manual here: docs/pipe/PIPE_manual.pdf
+
 Original author: Alexis Brandeker <alexis@astro.su.se>, Stockholm University.
 
 License
