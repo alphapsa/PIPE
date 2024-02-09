@@ -2139,7 +2139,7 @@ class PsfPhot:
             self.mess("WARNING: No REF_APP_FlatFieldTeff calibration file")
             self.pps.flatfield = False
 
-        if (self.pps.file_gain is None or self.pps.file_hk) and self.pps.gain is None:
+        if (self.pps.file_gain is None or self.pps.file_hk is None) and self.pps.gain is None:
             self.mess("WARNING: No REF_APP_GainCorrection or SCI_RAW_HkExtended calibration files")
             self.mess("Setting gain to 1.95 e/ADU")
             self.pps.gain = 1.95
