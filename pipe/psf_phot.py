@@ -165,6 +165,10 @@ class PsfPhot:
     def read_data(self):
         """Initialises data from data files
         """
+
+        # Check if optional calibration files are available
+        self.check_calibration_files()
+
         # Define gain, bias, and read-out noise        
         self.make_gain_function()
         self.read_bias_ron()
@@ -1293,7 +1297,7 @@ class PsfPhot:
         target_Teff is the target radiation temperature, used to produce
         a weighted (wavelength-dependent) flatfield. offset is the offset in
         pixels of frame within full detector size, and shape is shape of
-        flatefield. Returns flatfield
+        flatfield. Returns flatfield
         """
         return flatfield(self.pps.file_flats, target_Teff, offset, shape)
 
@@ -2121,6 +2125,32 @@ class PsfPhot:
         self.save_cube_fits(prefix+'bg_model_im.fits', self.bg_model_im())
 
 
+    def check_calibration_files(self):
+        """Checks what calibration files are available and logs warnings
+        for any missing. Switches of corrections for missing calibrations
+        rather than crash.
+        """
+        if self.pps.file_starcat is None:
+            self.mess("WARNING: No EXT_PRE_StarCatalogue calibration file")
+            self.pps.bgstars = False
+            self.pps.fit_bgstars = False
+
+        if self.pps.file_flats is None:
+            self.mess("WARNING: No REF_APP_FlatFieldTeff calibration file")
+            self.pps.flatfield = False
+
+        if (self.pps.file_gain is None or self.pps.file_hk) and self.pps.gain is None:
+            self.mess("WARNING: No REF_APP_GainCorrection or SCI_RAW_HkExtended calibration files")
+            self.mess("Setting gain to 1.95 e/ADU")
+            self.pps.gain = 1.95
+
+        if self.pps.file_nonlin is None:
+            self.mess("WARNING: No nonlin.npy calibration file")
+            self.pps.non_lin = False
+
+
+
+
     #----------- Methods for binary extractions below
 
     def define_binary_psf_library(self):
@@ -2504,9 +2534,6 @@ class PsfPhot:
         self.separation = np.median(ds)
         self.mess('Astrometry: separation [im] = {:.3f} +/- {:.3f} pix'.format(
                 self.separation, np.std(ds)/len(ds)**.5))
-
-
-
 
 
     def robust_centre_binary_sa(self, psf):
