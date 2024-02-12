@@ -71,7 +71,11 @@ class PsfPhot:
         
         self.mess(f'PIPE version {__version__}')
         self.plog.mess_list(self.pps.str_list()) # Save list of params to log
-        
+
+        if self.pps.file_sa_raw is None:
+            raise Exception(f'RAW_SubArray-file missing from {self.pps.datapath}')
+
+
         if self.pps.file_starcat is None:
             self.pps.bgstars = False
             self.pps.fit_bgstars = False
