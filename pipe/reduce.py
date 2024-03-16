@@ -296,6 +296,7 @@ def check_pos(xc, yc, clip=5, niter=3):
         sely = np.abs(yc-yc0) < clip*sy        
         sel = selx*sely        
     nbad = np.sum(sel==0)
+    s = (sx**2+sy**2)**.5
     if nbad > 0:
         if nbad < 50:
             ret_str = 'Bad offsets, lim {:.2f} ({:d}/{:d}):\n'.format(
