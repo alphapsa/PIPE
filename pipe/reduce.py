@@ -286,11 +286,15 @@ def check_pos(xc, yc, clip=5, niter=3):
     """
     min_std = 0.1 # To avoid pathological cases
     xc0, yc0 = np.nanmedian(xc), np.nanmedian(yc)
-    r = ((xc-xc0)**2+(yc-yc0)**2)**0.5
-    sel = np.ones(r.shape,dtype='?')
+    selx = np.ones(xc.shape,dtype='?')
+    sely = np.ones(xc.shape,dtype='?')
+    sel = selx*sely
     for _n in range(niter):
-        s = max(min_std, np.nanstd(r[sel]))
-        sel = r <= clip*s
+        sx = max(min_std, np.nanstd(xc[sel]))
+        sy = max(min_std, np.nanstd(yc[sel]))
+        selx = np.abs(xc-xc0) < clip*sx
+        sely = np.abs(yc-yc0) < clip*sy        
+        sel = selx*sely        
     nbad = np.sum(sel==0)
     if nbad > 0:
         if nbad < 50:

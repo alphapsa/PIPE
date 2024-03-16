@@ -82,7 +82,7 @@ class PsfPhot:
 
         if self.pps.Teff is None:
             if self.pps.file_starcat is None:
-                raise Exception('Without starcat, Teff needs to be defined')
+                raise Exception('Without EXT_PRE_StarCatalogue file, Teff needs to be defined')
             self.pps.Teff = self.read_Teff()
 
         # ----------- General variables
