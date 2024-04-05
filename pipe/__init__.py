@@ -23,6 +23,7 @@ from .multi_cent import (
     binary_psf_fix as multi_cent_binary_psf_fix
 )
 from .multi_psf import fit as multi_psf_fit, fit_binary as multi_psf_fit_binary
+from .non_lin import non_lin_tweak
 from .pipe_log import PipeLog
 from .read import (
     imagette_offset, raw_datacube, attitude, gain,
