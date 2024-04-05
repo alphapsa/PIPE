@@ -518,7 +518,7 @@ class PsfPhot:
             sel = (flag==0)
             self.sa_mad = mad(scale[sel])
             self.mess('MAD sa: {:.2f} ppm'.format(mad(scale)))
-            curr_mad = mad(scale[sel])
+            curr_mad = self.sa_mad
             self.mess('MAD sa[flag==0]: {:.2f} ppm'.format(curr_mad))
             self.sa_flux = scale
             self.sa_sel = sel
@@ -553,7 +553,10 @@ class PsfPhot:
                         self.reduce_data_sa()
                     scale, dbg, flux, err, sel, w = test_iter(testparams)
                     current_mad = self.sa_mad
-                    self.mess('{:s}, mad={:.2f} [sa]'.format(str(testparams), current_mad), 0)
+                    if self.sa_mad == self.sa_best_mad: 
+                        self.mess('{:s}, mad={:.2f} [sa]*'.format(str(testparams), current_mad), 0)
+                    else:
+                        self.mess('{:s}, mad={:.2f} [sa]'.format(str(testparams), current_mad), 0)                        
                 nominal = fo.get_best()
                 self.mess('--- Iter best {:d}: {:s} [sa]'.format(n, str(nominal)), 0)
             self.mess('Optimisation done ({:d} iterations) [sa]'.format(len(fo.tested_params)), 0)
@@ -562,7 +565,8 @@ class PsfPhot:
             nominal.mad = None
             scale, dbg, flux, err, sel, w = test_iter(nominal, self.pps.sigma_clip_niter+1)
             self.mess('{:s}, mad={:.2f} [sa]'.format(str(nominal), self.sa_mad), 0)
-            self.mess('--- Done! [sa]', 0)
+            self.mess('--- Done! ({:s}/{:s} {:05d}) [sa]'.format(self.pps.name,
+                                                                 self.pps.visit, self.pps.version), 0)
 
         return  scale, dbg, flux, err, sel, w
 
@@ -697,7 +701,10 @@ class PsfPhot:
                         self.reduce_data_im()
                     scale, dbg, flux, err, sel, w = test_iter(testparams)
                     current_mad = self.im_mad
-                    self.mess('{:s}, mad={:.2f} [im]'.format(str(testparams), current_mad), 0)
+                    if self.im_mad == self.im_best_mad: 
+                        self.mess('{:s}, mad={:.2f} [im]*'.format(str(testparams), current_mad), 0)
+                    else:
+                        self.mess('{:s}, mad={:.2f} [im]'.format(str(testparams), current_mad), 0)                        
                 nominal = fo.get_best()
                 self.mess('--- Iter best {:d}: {:s} [im]'.format(n, str(nominal)), 0)
             self.mess('Optimisation done ({:d} iterations) [im]'.format(len(fo.tested_params)), 0)
@@ -706,7 +713,8 @@ class PsfPhot:
             nominal.mad = None
             scale, dbg, flux, err, sel, w = test_iter(nominal, self.pps.sigma_clip_niter+1)
             self.mess('{:s}, mad={:.2f} [im]'.format(str(nominal), self.im_mad), 0)
-            self.mess('--- Done! [im]', 0)
+            self.mess('--- Done! ({:s}/{:s} {:05d}) [im]'.format(self.pps.name,
+                                                                 self.pps.visit, self.pps.version), 0)
 
         return  scale, dbg, flux, err, sel, w
 
