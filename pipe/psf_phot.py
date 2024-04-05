@@ -979,6 +979,10 @@ class PsfPhot:
             self.nonlinfun = nonlinear(self.pps.file_nonlin)
             self.mess('Correcting non-linearity [sa]')
             sa_raw *= self.nonlinfun(sa_raw / gain[:,None,None] / self.sa_nexp)
+            if self.pps.non_lin_tweak:
+                self.mess('Tweaking non-linearity [sa]')
+                sa_raw /= non_lin_tweak(sa_raw, nexp=self.sa_nexp,
+                                        params=self.pps.non_lin_tweak_params)
         else:
             self.mess('No correction for non-linearity. [sa]')
         self.sa_debias = sa_raw
@@ -1053,6 +1057,10 @@ class PsfPhot:
             self.nonlinfun = nonlinear(self.pps.file_nonlin)
             self.mess('Correcting non-linearity [im]')
             im_raw *= self.nonlinfun(im_raw / gain[:,None,None] / self.im_nexp)
+            if self.pps.non_lin_tweak:
+                self.mess('Tweaking non-linearity [im]')
+                im_raw /= non_lin_tweak(im_raw, nexp=self.im_nexp,
+                                        params=self.pps.non_lin_tweak_params)
         else:
             self.mess('No correction for non-linearity. [im]')
         self.im_debias = im_raw
