@@ -47,6 +47,7 @@ from .read import (
 from .spline_pca import SplinePCA
 from .syntstar import star_bg, rotate_position, derotate_position, psf_radii
 from .multi_star import make_star_bg, refine_star_bg, make_bg_circ_mask_cube, make_bg_psf_mask_cube
+from .non_lin import non_lin_tweak
 from .reduce import (
     resample_attitude, resample_imagette_time, aperture, integrate_psf,
     interp_cube_ext, cube_apt, clean_cube2D, interp_cube, noise, psf_noise,
@@ -2152,9 +2153,7 @@ class PsfPhot:
             self.mess("WARNING: No nonlin.npy calibration file")
             self.pps.non_lin = False
 
-
-
-
+    
     #----------- Methods for binary extractions below
 
     def define_binary_psf_library(self):

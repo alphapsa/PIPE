@@ -124,6 +124,10 @@ class PipeParam:
         self.cti_expo = -0.65      # CTI exponent
         self.cti_lim = 0.0333      # Limiting CTI
 
+        # Experimental non-linear tweak
+        self.non_lin_tweak = False
+        self.non_lin_tweak_params = (100, 700, 0.04, 800)   # Parameters used by experimental non-linear tweak
+
         # Binary parameters
         self.secondary = 1       # Entry of secondary in starcat (primary is
                                  # always entry 0)
