@@ -59,6 +59,7 @@ def make_aniso_bg(res_cube, edge=20, klip=3, klip2=10, nthreads=16):
     Nres = 20
     
     bgs = np.zeros_like(res_cube)
+    bgs[np.isnan(res_cube)] = np.nan
     flags = np.zeros(len(bgs))
 
     # Model satellite streaks    

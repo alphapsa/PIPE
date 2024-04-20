@@ -518,6 +518,13 @@ class PsfPhot:
                 if self.pps.remove_satellites and self.sa_satellites_removed is False:
                     # Only remove once
                     self.sa_satellites_removed = True
+                    # Always remove static
+                    if params.bStat:
+                        res = self.compute_residuals_sa()
+                    else:
+                        self.compute_resid_stat_sa(res)
+                        res = self.compute_residuals_sa()
+                        self.sa_stat_res *= 0
                     self.remove_satellites_sa(res)
 
                 if self.pps.bgstars and self.pps.fit_bgstars and self.sa_bg_refined is False:
@@ -1948,12 +1955,34 @@ class PsfPhot:
         background features, and then attempts to model those features.
         Models are then saved in cube for later use in the background model.
         """
+        self.save_cube_fits('Debug_residuals_sa.fits', res)
+
         self.mess('Modelling and removing satellites [sa]')
-        self.sa_satellites, self.sa_satellite_flag = make_aniso_bg(res,
+        self.sa_satellites, flag = make_aniso_bg(res,
                                             edge=20,
                                             klip=self.pps.satellite_klip1,
                                             klip2=self.pps.satellite_klip2,
                                             nthreads=self.pps.nthreads)
+        self.sa_satellite_flag = flag
+        Nframes = len(flag)
+        if np.sum(flag==1) == 0:
+            self.mess(f'   No single satellite crossings in {Nframes} frames')
+        else:
+            self.mess(f'  {np.sum(flag==1)}/{Nframes} single satellite crossings detected:')
+            self.mess(f'{np.where(flag==1)[0]}')
+
+        if np.sum(flag==2) == 0:
+            self.mess(f'   No double satellite crossings in {Nframes} frames')
+        else:
+            self.mess(f'  {np.sum(flag==2)}/{Nframes} double satellite crossings detected:')
+            self.mess(f'{np.where(flag==2)[0]}')
+
+        if np.sum(flag==3) == 0:
+            self.mess(f'   No complex background in {Nframes} frames')
+        else:
+            self.mess(f'  {np.sum(flag==3)}/{Nframes} complex backgrounds detected:')
+            self.mess(f'{np.where(flag==3)[0]}')
+
 
 
     def has_source(self, data, mask=None, clip=5, niter=10):
