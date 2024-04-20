@@ -90,7 +90,7 @@ class PipeParam:
 
         self.remove_satellites = False  # If True, all frames are searched for an anisotropic background
                                         # such as caused by satellites. 
-        self.satellite_klip1 = 3        # The insensitivity to one-satellite streaks
+        self.satellite_klip1 = 1        # The insensitivity to one-satellite streaks
         self.satellite_klip2 = 10       # The insensitivity to second satellite streaks
         self.centre = True       # If True, find the centre of the target star. Else, assume it is 
                                  # at the centre of the frame (plus default offsets)
