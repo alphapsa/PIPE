@@ -1955,8 +1955,6 @@ class PsfPhot:
         background features, and then attempts to model those features.
         Models are then saved in cube for later use in the background model.
         """
-        self.save_cube_fits('Debug_residuals_sa.fits', res)
-
         self.mess('Modelling and removing satellites [sa]')
         self.sa_satellites, flag = make_aniso_bg(res,
                                             edge=20,
