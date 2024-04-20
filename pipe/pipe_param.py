@@ -87,6 +87,11 @@ class PipeParam:
         self.mask_bg_stars_circle = True # Use a circular mask, otherwise PSF-shaped
         self.mask_bg_radius = 20         # Mask out BG stars to this radius in pixels (if masked out)
         self.mask_bg_level = 0.1         # If not circular mask, use this level of peak to define mask
+
+        self.remove_satellites = False  # If True, all frames are searched for an anisotropic background
+                                        # such as caused by satellites. 
+        self.satellite_klip1 = 3        # The insensitivity to one-satellite streaks
+        self.satellite_klip2 = 10       # The insensitivity to second satellite streaks
         self.centre = True       # If True, find the centre of the target star. Else, assume it is 
                                  # at the centre of the frame (plus default offsets)
         self.centre_psf_filename = None     # Filename of special PSF to be used for centroiding.
@@ -156,6 +161,7 @@ class PipeParam:
         self.save_noise_cubes = False # Save estimated noise (raw/PSF/empiric) as fits cubes
         self.save_gain = False       # Save estimated gain table (with columns MJD, gain)
         self.save_bg_star_phot = True # If BG stars are fitted, save their photometry
+        self.save_satellites = True  # If satellite streaks are modelled, save them in cube.
         self.save_astrometry = False # For binaries, saves text file with separation
         
         # Extraction parameters

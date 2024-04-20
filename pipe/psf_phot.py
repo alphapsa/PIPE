@@ -47,6 +47,7 @@ from .read import (
 from .spline_pca import SplinePCA
 from .syntstar import star_bg, rotate_position, derotate_position, psf_radii
 from .multi_star import make_star_bg, refine_star_bg, make_bg_circ_mask_cube, make_bg_psf_mask_cube
+from .multi_satellites import make_aniso_bg
 from .non_lin import non_lin_tweak
 from .reduce import (
     resample_attitude, resample_imagette_time, aperture, integrate_psf,
@@ -100,6 +101,10 @@ class PsfPhot:
         self.sa_sub = None      # Reduced cube with background (and dark)
                                 # subtracted, smearing corrected
         self.sa_bgstars = None  # Cube of background stars in subarray
+        self.sa_satellites = None  # Cube of complex backgeound/satellite streaks
+        self.sa_satellite_flag = None  # Array of flags defining nature of complex bg
+                                # 0 is none bg, 1 is 1 satellite, 2 is 2 satellites
+                                # 3 is complex background (e.g. gradient, wavy)
         self.sa_bg_mask = None  # Cube of PSF core mask of BG stars
         self.sa_dark = None     # Dark current subarray image scaled to exp. time
         self.sa_dark_err = None # Std error of subarray dark current image
@@ -407,6 +412,9 @@ class PsfPhot:
         if self.pps.remove_static:
             bg_mod += self.sa_stat_res
 
+        if self.pps.remove_satellites:
+            bg_mod += self.sa_satellites
+
         return bg_mod*self.sa_apt
 
 
@@ -445,6 +453,7 @@ class PsfPhot:
         """
         self.mess('--- Start processing subarray data with eigen')
         self.sa_bg_refined = False
+        self.sa_satellites_removed = False
         max_klip = len(self.eigen_psf)
         self.sa_best_mad = np.inf
 
@@ -506,11 +515,17 @@ class PsfPhot:
                                                 np.abs(self.sa_dark))**2 +
                                 self.sa_dark_err**2)**.5
 
+                if self.pps.remove_satellites and self.sa_satellites_removed is False:
+                    # Only remove once
+                    self.sa_satellites_removed = True
+                    self.remove_satellites_sa(res)
+
                 if self.pps.bgstars and self.pps.fit_bgstars and self.sa_bg_refined is False:
                     # Only refine once
                     self.refine_star_bg_sa()
                     self.make_star_bg_cube_sa()
                     self.sa_bg_refined = True
+
 
             flux, err = self.psf_phot_sa(self.sa_psf_cube, self.pps.fitrad)
             flag = self.flag_sa(scale, sel)
@@ -762,6 +777,9 @@ class PsfPhot:
         if self.pps.save_bg_models:
             self.save_bg_model_sa('')
 
+        if self.pps.remove_satellites and self.pps.save_satellites:
+            self.save_satellites_sa('')
+
         self.save_eigen_sa(flag, scale, scale*err,
                            self.sa_dbg + self.sa_bg, w)
 
@@ -796,7 +814,7 @@ class PsfPhot:
             self.save_bg_im('')
 
         if self.pps.save_bg_models:
-            self.save_bg_model_sa('')
+            self.save_bg_model_im('')
 
         self.save_eigen_im(flag, scale, scale*err,
                            self.im_dbg + self.im_bg, w)
@@ -950,6 +968,10 @@ class PsfPhot:
 
         # Initialise frame for static residual image
         self.sa_stat_res = 0 * sa_raw[0]
+
+        # If satellites are to be removed, initialise cube
+        if self.pps.remove_satellites:
+            self.sa_satellites = np.zeros_like(sa_raw)
 
         # Mutliply with gain
         gain = self.gain_fun(self.sa_mjd) * np.ones_like(self.sa_mjd)
@@ -1921,6 +1943,19 @@ class PsfPhot:
                                 self.im_hdr)
 
 
+    def remove_satellites_sa(self, res):
+        """ Searches for satellite streaks and other strong anisotropic
+        background features, and then attempts to model those features.
+        Models are then saved in cube for later use in the background model.
+        """
+        self.mess('Modelling and removing satellites [sa]')
+        self.sa_satellites, self.sa_satellite_flag = make_aniso_bg(res,
+                                            edge=20,
+                                            klip=self.pps.satellite_klip1,
+                                            klip2=self.pps.satellite_klip2,
+                                            nthreads=self.pps.nthreads)
+
+
     def has_source(self, data, mask=None, clip=5, niter=10):
         """Find out what frames are missing a source, and return
         a binary index array to indicate frames with source.
@@ -2135,7 +2170,7 @@ class PsfPhot:
 
 
     def save_bg_model_sa(self, prefix):
-        """Save bg model including bg stars, smear, and static
+        """Save bg model including bg stars, smear, satellites, and static
         """
         self.save_cube_fits(prefix+'bg_model_sa.fits', self.bg_model_sa())
 
@@ -2144,6 +2179,12 @@ class PsfPhot:
         """Save bg model including bg stars, smear, and static
         """
         self.save_cube_fits(prefix+'bg_model_im.fits', self.bg_model_im())
+
+
+    def save_satellites_sa(self, prefix):
+        """Save satellite bg model cube
+        """
+        self.save_cube_fits(prefix+'satellites_sa.fits', self.sa_satellites)
 
 
     def check_calibration_files(self):
