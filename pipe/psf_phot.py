@@ -959,6 +959,7 @@ class PsfPhot:
             read_raw_datacube(self.pps.file_sa_raw, self.pps.sa_range)
         self.sa_nexp = self.sa_hdr['NEXP']
         self.sa_off = (self.sa_hdr['X_WINOFF'], self.sa_hdr['Y_WINOFF'])
+        self.sa_hdr['PIPE_VER'] = __version__
 
         # Define aperture mask
         self.sa_apt = np.isfinite(sa_raw[0])
@@ -1041,7 +1042,9 @@ class PsfPhot:
         self.im_nexp = self.im_hdr['NEXP']
         self.nexp = self.sa_nexp / self.im_nexp
         self.im_off, self.im_sa_off = imagette_offset(self.pps.file_im)
-        
+        self.im_hdr['PIPE_VER'] = __version__
+
+
         # Define aperture mask
         self.im_apt = np.isfinite(im_raw[0])
 
