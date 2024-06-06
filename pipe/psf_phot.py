@@ -16,8 +16,8 @@ that are called from PsfPhot.
 """
 import os
 import pickle
+import time
 import numpy as np
-from astropy.io import fits
 
 from .analyse import psf_phot_cube
 from .cent import (
@@ -51,9 +51,9 @@ from .multi_satellites import make_aniso_bg
 from .non_lin import non_lin_tweak
 from .reduce import (
     resample_attitude, resample_imagette_time, aperture, integrate_psf,
-    interp_cube_ext, cube_apt, clean_cube2D, interp_cube, noise, psf_noise,
-    pix_mat, make_maskcube, rough_contrast, check_low, check_val, check_pos,
-    check_motion, check_mask, empiric_noise, cti_corr_fun, resid_smear
+    interp_cube_ext, clean_cube2D, noise, psf_noise, pix_mat, make_maskcube,
+    rough_contrast, check_low, check_val, check_pos, check_motion, check_mask,
+    empiric_noise, cti_corr_fun, resid_smear
 )
 from .version import __version__
 
@@ -959,7 +959,8 @@ class PsfPhot:
             read_raw_datacube(self.pps.file_sa_raw, self.pps.sa_range)
         self.sa_nexp = self.sa_hdr['NEXP']
         self.sa_off = (self.sa_hdr['X_WINOFF'], self.sa_hdr['Y_WINOFF'])
-        self.sa_hdr['PIPE_VER'] = __version__
+        self.sa_hdr['PIPE_VER'] = (__version__, 'PIPE version')
+        self.sa_hdr['PROC_TIME'] = (time.asctime(), 'PIPE processing date')
 
         # Define aperture mask
         self.sa_apt = np.isfinite(sa_raw[0])
@@ -1042,7 +1043,8 @@ class PsfPhot:
         self.im_nexp = self.im_hdr['NEXP']
         self.nexp = self.sa_nexp / self.im_nexp
         self.im_off, self.im_sa_off = imagette_offset(self.pps.file_im)
-        self.im_hdr['PIPE_VER'] = __version__
+        self.im_hdr['PIPE_VER'] = (__version__, 'PIPE version')
+        self.im_hdr['PROC_TIME'] = (time.asctime(), 'PIPE processing date')
 
 
         # Define aperture mask
