@@ -507,7 +507,7 @@ def make_maskcube(data_cube, noise_cube, model_cube,
     mask_cube[np.greater(np.abs(data_cube - model_cube), clip*noise_cube)] = 0
     if mask is not None:
         mask_cube *= mask
-   return mask_cube        
+    return mask_cube        
 
 
     
