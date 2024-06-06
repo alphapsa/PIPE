@@ -88,7 +88,7 @@ class PipeParam:
         self.mask_bg_radius = 20         # Mask out BG stars to this radius in pixels (if masked out)
         self.mask_bg_level = 0.1         # If not circular mask, use this level of peak to define mask
 
-        self.remove_satellites = False  # If True, all frames are searched for an anisotropic background
+        self.remove_satellites = True  # If True, all frames are searched for an anisotropic background
                                         # such as caused by satellites. 
         self.satellite_klip1 = 3        # The insensitivity to one-satellite streaks
         self.satellite_klip2 = 10       # The insensitivity to second satellite streaks
