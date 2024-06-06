@@ -180,7 +180,19 @@ class FindOptimal:
     
         self.num_tests = len(self.current_tests)
     
-    
+
+def update_header(hdr, pps, mad=None):
+    """Update FITS header with parameters and MAD (if relevant)
+    """
+    hdr['PIPE_BG'] = (str(pps.bBG), 'If bacgkround was fitted at PSF extraction')
+    hdr['PIPE_KLP'] = (str(pps.klip), 'Number of PSF PCs used in fit')
+    hdr['PIPE_RAD'] = (str(pps.fitrad), 'PSF fitting radius used')
+    hdr['PIPE_DRK'] = (str(pps.bDark), 'If dark was subtracted')
+    hdr['PIPE_ST'] = (str(pps.bStat), 'If static image was subtracted')
+    if mad is not None:
+        hdr['PIPE_MAD'] = ('{:.2f}'.format(mad), 'Estimated MAD without flagged frames')
+
+
 if __name__ == '__main__':
     
     # Simple tests

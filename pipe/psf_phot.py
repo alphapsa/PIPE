@@ -32,7 +32,7 @@ from .multi_cent import (
 from .multi_level import estimate as level_estimate
 from .level import ring_median as level_ring_median
 from .multi_psf import fit as multi_psf_fit, fit_binary as multi_psf_fit_binary
-from .optimal_params import TestParams, FindOptimal
+from .optimal_params import TestParams, FindOptimal, update_header
 from .pipe_log import PipeLog
 from .pipe_statistics import mad, sigma_clip
 from .psf_model import psf_model
@@ -547,6 +547,7 @@ class PsfPhot:
 
             if curr_mad < self.sa_best_mad:
                 self.sa_best_mad = curr_mad
+                update_header(self.sa_hdr, params, curr_mad)
                 self.save_results_sa(scale, err, w, flag)
 
             return scale, dbg, flux, err, sel, w
@@ -695,6 +696,7 @@ class PsfPhot:
 
             if curr_mad < self.im_best_mad:
                 self.im_best_mad = curr_mad
+                update_header(self.im_hdr, params, curr_mad)
                 self.save_results_im(scale, err, w, flag)
 
             return scale, dbg, flux, err, sel, w
