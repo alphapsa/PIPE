@@ -1735,7 +1735,7 @@ class PsfPhot:
         self.mess('Make mask cube [sa]')
         if self.pps.empiric_noise:
             clip = self.pps.empiric_sigma_clip
-            self.mess('Using empiric noise for mask cube (clip={:.1f}) [sa]'.format(clip))
+            self.mess('  Using empiric noise for mask cube (clip={:.1f}) [sa]'.format(clip))
             res = self.compute_residuals_sa()
             noise_cube = empiric_noise(res, self.sa_xc, self.sa_yc, self.sa_dbg + self.sa_bg)
         else:
@@ -1758,7 +1758,7 @@ class PsfPhot:
         self.mess('Make mask cube [im]')
         if self.pps.empiric_noise:
             clip = self.pps.empiric_sigma_clip
-            self.mess('Using empiric noise for mask cube (clip={:.1f}) [im]'.format(clip))
+            self.mess('  Using empiric noise for mask cube (clip={:.1f}) [im]'.format(clip))
             res = self.compute_residuals_im()
             noise_cube = empiric_noise(res, self.im_xc, self.im_yc, self.im_dbg + self.im_bg)
         else:

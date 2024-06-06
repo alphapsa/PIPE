@@ -12,8 +12,6 @@ import warnings
 import numpy as np
 from scipy import interpolate
 from scipy.ndimage import shift
-#from .cent import flux as cent_flux
-
 
 def resample_imagette_time(sa_time, nexp):
     """Equidistantly distributes nexp exposures
@@ -405,7 +403,7 @@ def psf_noise(source_model, ron_elec, e_per_ADU=1):
     return (np.abs(source_model)*e_per_ADU + ron_elec**2)**0.5 / e_per_ADU
 
 
-def empiric_noise(residual_cube, xc, yc, bg=None, niter=10, sigma_clip=3):
+def empiric_noise(residual_cube, xc, yc, bg=None, niter=5, sigma_clip=3):
     """Checks the consistency of each plane in cube, offset
     to proper centre the PSFs. The resulting statistical
     noise is then offset back to original position, and a
@@ -421,21 +419,26 @@ def empiric_noise(residual_cube, xc, yc, bg=None, niter=10, sigma_clip=3):
     ym = np.nanmedian(yc)
     dx = xc - xm
     dy = yc - ym
+
     for n in range(len(residual_cube)):
         shift_cube[n] = shift(residual_cube[n], (-dy[n], -dx[n]), order=1)
+
     shift_cube -= np.nanmedian(shift_cube, axis=0)
-    Nsigma = sigma_clip*np.nanmax(np.abs(shift_cube), axis=0)
+    sigma = np.nanmax(np.abs(shift_cube), axis=0)
+
     for n in range(niter):
         shift_cube0 = shift_cube.copy()
-        shift_cube0[np.greater(np.abs(shift_cube), Nsigma[None,:,:])] = np.nan
-        Nsigma = sigma_clip * np.nanstd(shift_cube0, axis=0)
+        shift_cube0[np.greater(np.abs(shift_cube), sigma_clip * sigma[None,:,:])] = np.nan
+        sigma = np.nanstd(shift_cube0, axis=0)
+
     for n in range(len(residual_cube)):
-        noise_cube[n] = shift(Nsigma, (dy[n], dx[n]), order=1)
+        noise_cube[n] = shift(sigma, (dy[n], dx[n]), order=1)
+
     if bg is not None:
-        bgm = np.nanmedian(bg)
-        bg_noise2 = bg - bgm
-        noise_cube = np.abs(noise_cube**2 + bg_noise2[:,None, None])**.5
+        bg_noise2 = bg - np.nanmin(bg)
+        noise_cube = (noise_cube**2 + bg_noise2[:,None, None])**.5
     return noise_cube
+
 
 
 def integrate_psf(psf_fun, radius=23):
@@ -504,7 +507,7 @@ def make_maskcube(data_cube, noise_cube, model_cube,
     mask_cube[np.greater(np.abs(data_cube - model_cube), clip*noise_cube)] = 0
     if mask is not None:
         mask_cube *= mask
-    return mask_cube        
+   return mask_cube        
 
 
     
