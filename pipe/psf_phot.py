@@ -961,7 +961,7 @@ class PsfPhot:
             read_raw_datacube(self.pps.file_sa_raw, self.pps.sa_range)
         self.sa_nexp = self.sa_hdr['NEXP']
         self.sa_off = (self.sa_hdr['X_WINOFF'], self.sa_hdr['Y_WINOFF'])
-        self.sa_hdr['PIPE_VER'] = (__version__, 'PIPE version')
+        self.sa_hdr['PIPEXVER'] = (__version__, 'PIPE extraction version')
         self.sa_hdr['PROCTIME'] = (time.asctime(), 'PIPE processing date')
 
         # Define aperture mask
@@ -1045,7 +1045,7 @@ class PsfPhot:
         self.im_nexp = self.im_hdr['NEXP']
         self.nexp = self.sa_nexp / self.im_nexp
         self.im_off, self.im_sa_off = imagette_offset(self.pps.file_im)
-        self.im_hdr['PIPE_VER'] = (__version__, 'PIPE version')
+        self.im_hdr['PIPEXVER'] = (__version__, 'PIPE extraction version')
         self.im_hdr['PROCTIME'] = (time.asctime(), 'PIPE processing date')
 
 
