@@ -169,7 +169,7 @@ class PipeParam:
         self.sigma_clip = 15     # The residual/std-factor for masking
         self.sigma_clip_niter = 2    # Number of iterations used for sigma-clipping
         self.empiric_noise = True   # Use noise determined by statistics on residuals
-        self.empiric_sigma_clip = 4  # The sigma-clipping to use with empiric noise
+        self.empiric_sigma_clip = 10  # The sigma-clipping to use with empiric noise
         self.block_psf_level = 1e-4  # The level above which the PSF is blocked when
                                      # doing vertical smear correction
         self.centfit_rad = 23    # Find target and fit centroid inside this radius
