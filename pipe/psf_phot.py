@@ -898,6 +898,7 @@ class PsfPhot:
             np.nanmin(self.sa_bg), np.nanmax(self.sa_bg)))
         
         if self.pps.bg_median:
+            self.mess('Using median background [sa]')
             sa_sub -= self.sa_apt*np.nanmedian(self.sa_bg)
         else:
             sa_sub -= self.sa_apt*self.sa_bg[:, None, None]
@@ -938,6 +939,7 @@ class PsfPhot:
         self.sa_bg2im_bg()
 
         if self.pps.bg_median:
+            self.mess('Using median background [im]')
             im_sub -= self.im_apt*np.nanmedian(self.im_bg)
         else:
             im_sub -= self.im_apt*self.im_bg[:, None, None]
