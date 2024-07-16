@@ -500,9 +500,9 @@ class PsfPhot:
                 self.sa_dbg = dbg
                     
                 self.mess('Iter {:d} MAD sa: {:.2f} ppm'.format(n+1, mad(scale0)))
-                self.make_mask_cube_sa()
-                self.sa_mask_cube[sel==0] = self.sa_mask
                 res = self.compute_residuals_sa()
+                self.make_mask_cube_sa(res)
+                self.sa_mask_cube[sel==0] = self.sa_mask
         
                 if self.pps.smear_resid_sa:
                     self.update_smear_sa(res)
@@ -511,10 +511,10 @@ class PsfPhot:
                     self.compute_resid_stat_sa(res)
                     
                 self.sa_noise = (self.psf_noise_sa(np.abs(self.sa_psf_cube) +
-                                                np.abs(self.bg_model_sa()) +
+                                                 np.abs(self.bg_model_sa()) +
                                                 np.abs(self.sa_dark))**2 +
                                 self.sa_dark_err**2)**.5
-
+                
                 if self.pps.remove_satellites and self.sa_satellites_removed is False:
                     # Only remove once
                     self.sa_satellites_removed = True
@@ -662,9 +662,10 @@ class PsfPhot:
                 self.im_dbg = dbg
 
                 self.mess('Iter {:d} MAD im: {:.2f} ppm'.format(n+1, mad(scale0)))
-                self.make_mask_cube_im()
-                self.im_mask_cube[sel==0] = self.im_mask
+
                 res = self.compute_residuals_im()
+                self.make_mask_cube_im(res)
+                self.im_mask_cube[sel==0] = self.im_mask
 
                 if self.pps.smear_resid_im:
                     self.update_smear_im(res)
@@ -676,7 +677,7 @@ class PsfPhot:
                                                 np.abs(self.bg_model_im()) +
                                                 np.abs(self.im_dark))**2 +
                                 self.im_dark_err**2)**.5
-                
+
                 if self.pps.bgstars and self.pps.fit_bgstars and self.im_bg_refined is False:
                     # Only refince once
                     self.refine_star_bg_im()
@@ -895,7 +896,12 @@ class PsfPhot:
         self.mess('  Median: {:.2f} Std: {:.2f} Min: {:.2f} Max: {:.2f}'.format(
             np.nanmedian(self.sa_bg), np.nanstd(self.sa_bg),
             np.nanmin(self.sa_bg), np.nanmax(self.sa_bg)))
-        sa_sub -= self.sa_apt*self.sa_bg[:, None, None]
+        
+        if self.pps.bg_median:
+            sa_sub -= self.sa_apt*np.nanmedian(self.sa_bg)
+        else:
+            sa_sub -= self.sa_apt*self.sa_bg[:, None, None]
+
         self.sa_sub = sa_sub
         
         self.sa_noise = self.raw_noise_sa()
@@ -931,7 +937,11 @@ class PsfPhot:
         self.mess('Inteprolating background levels from subarrays [im]')
         self.sa_bg2im_bg()
 
-        im_sub -= self.im_apt*self.im_bg[:, None, None]
+        if self.pps.bg_median:
+            im_sub -= self.im_apt*np.nanmedian(self.im_bg)
+        else:
+            im_sub -= self.im_apt*self.im_bg[:, None, None]
+
         self.im_sub = im_sub
 
         self.im_noise = self.raw_noise_im()
@@ -1724,10 +1734,10 @@ class PsfPhot:
         return apt
 
 
-    def make_mask_cube_sa(self):
+    def make_mask_cube_sa(self, res):
         """Use a model of how the data should look like, the expected
         noise, and sigma-clipping to mask too deviating pixels 
-        (e.g. cosmic rays). Only look for bad pixels inside radius.
+        (e.g. cosmic rays).
         """
         if not self.pps.mask_badpix:
             self.mess('No mask cube [sa].', level=2)
@@ -1736,18 +1746,15 @@ class PsfPhot:
         if self.pps.empiric_noise:
             clip = self.pps.empiric_sigma_clip
             self.mess('  Using empiric noise for mask cube (clip={:.1f}) [sa]'.format(clip))
-            res = self.compute_residuals_sa()
             noise_cube = empiric_noise(res, self.sa_xc, self.sa_yc, self.sa_dbg + self.sa_bg)
         else:
             noise_cube = self.sa_noise
             clip = self.pps.sigma_clip
 
-        self.sa_mask_cube = make_maskcube(self.sa_sub, noise_cube,
-                                          self.sa_psf_cube + self.bg_model_sa(),
-                                          mask=self.sa_mask, clip=clip)
+        self.sa_mask_cube = make_maskcube(res, noise_cube, mask=self.sa_mask, clip=clip)
 
 
-    def make_mask_cube_im(self):
+    def make_mask_cube_im(self, res):
         """Use a model of how the data should look like, the expected
         noise, and sigma-clipping to mask too deviating pixels 
         (e.g. cosmic rays). Only look for bad pixels inside radius.
@@ -1759,14 +1766,11 @@ class PsfPhot:
         if self.pps.empiric_noise:
             clip = self.pps.empiric_sigma_clip
             self.mess('  Using empiric noise for mask cube (clip={:.1f}) [im]'.format(clip))
-            res = self.compute_residuals_im()
             noise_cube = empiric_noise(res, self.im_xc, self.im_yc, self.im_dbg + self.im_bg)
         else:
             noise_cube = self.im_noise
             clip = self.pps.sigma_clip
-        self.im_mask_cube = make_maskcube(self.im_sub, noise_cube,
-                                          self.im_psf_cube + self.bg_model_im(),
-                                          mask=self.im_mask, clip=clip)
+        self.im_mask_cube = make_maskcube(res, noise_cube, mask=self.im_mask, clip=clip)
 
 
     def make_star_bg_cube_sa(self, skip=[0]):
@@ -2370,9 +2374,9 @@ class PsfPhot:
             self.mess('Iter {:d} MAD sa0: {:.2f} ppm'.format(n+1, mad(scale00)))
             self.mess('Iter {:d} MAD sa1: {:.2f} ppm'.format(n+1, mad(scale10)))
             bg = np.interp(t, t0, bg0)
-            self.make_mask_cube_sa(psf_cube0+psf_cube1, bg)
-            self.sa_mask_cube[sel==0] = self.sa_mask
             res = self.sa_sub - (psf_cube0+psf_cube1) - bg[:,None,None]
+            self.make_mask_cube_sa(res)
+            self.sa_mask_cube[sel==0] = self.sa_mask
             if self.pps.remove_static:
                 self.sa_stat_res = np.nanmedian(res, axis=0)
 #            self.remove_resid_smear_sa(res, (psf_cube0+psf_cube1))
@@ -2458,9 +2462,9 @@ class PsfPhot:
             self.mess('Iter {:d} MAD im0: {:.2f} ppm'.format(n+1, mad(scale00)))
             self.mess('Iter {:d} MAD im1: {:.2f} ppm'.format(n+1, mad(scale10)))
             bg = np.interp(t, t0, bg0)
-            self.make_mask_cube_im(psf_cube0+psf_cube1, bg)
-            self.im_mask_cube[sel==0] = self.im_mask
             res = self.im_sub - (psf_cube0+psf_cube1) - bg[:,None,None]
+            self.make_mask_cube_im(res)
+            self.im_mask_cube[sel==0] = self.im_mask
             if self.pps.remove_static:
                 self.im_stat_res = np.nanmedian(res, axis=0)
             self.im_noise = (self.psf_noise_im((psf_cube0+psf_cube1) + self.im_bg[:, None, None] +

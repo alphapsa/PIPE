@@ -440,7 +440,6 @@ def empiric_noise(residual_cube, xc, yc, bg=None, niter=5, sigma_clip=3):
     return noise_cube
 
 
-
 def integrate_psf(psf_fun, radius=23):
     """Computes the flux of the psf inside radius. Used
     to normalise the PSF.
@@ -498,16 +497,12 @@ def resid_smear(data, clip=3, niter=10):
     return m
 
 
-def make_maskcube(data_cube, noise_cube, model_cube,
-                  mask=None, clip=5):
+def make_maskcube(residual_cube, noise_cube, mask=None, clip=5):
     """Find pixels that deviate too much from fitted models, and
     produce a cube of masks.
     """
-    mask_cube = np.ones(data_cube.shape, dtype='?')
-    mask_cube[np.greater(np.abs(data_cube - model_cube), clip*noise_cube)] = 0
+    mask_cube = np.ones(residual_cube.shape, dtype='?')
+    mask_cube[np.greater(np.abs(residual_cube), clip*noise_cube)] = 0
     if mask is not None:
         mask_cube *= mask
     return mask_cube        
-
-
-    
