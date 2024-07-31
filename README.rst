@@ -12,11 +12,12 @@ PIPE
     :target: http://www.astropy.org
     :alt: Powered by Astropy Badge
 
-PIPE is a photometric extraction package for CHEOPS that is complementing
-the official Data Reduction Pipeline (DRP). While the DRP is using aperture
-photometry on the D=200 pixel subarrays provided by CHEOPS, PIPE is using
-PSF photometry on the D=60 pixel imagettes, often provided with a shorter cadence
-than the subarrays.
+PIPE (PSF Imagette Photometric Extraction) is a photometric extraction package for
+CHEOPS that is complementing the official Data Reduction Pipeline (DRP). While the
+DRP is using aperture photometry on the 200x200 pixel subarrays provided by CHEOPS,
+PIPE is using PSF photometry and can also extract photometry from the D=60 pixel
+imagettes sometimes provided for brighter stars. Imagettes have the advantage of
+shorter cadence than the subarrays, improving the time resolution.
 
 Why should you care about PIPE when we already have the DRP? There are a couple
 of advantages in using PIPE:
@@ -26,19 +27,19 @@ of advantages in using PIPE:
   e.g. when stellar activity such as flares need to be time resolved, or
   when ingress/egress is desired to be better resolved for timing purposes.
 
-* Targets with a bright source nearby (e.g. binaries) can have their photometry
-  individually resolved.
+* PSF photometry is less influenced by background contaminant stars. PIPE can
+  extract disentangled photometry from background stars (of separations greater
+  than arcsec)
 
 * For faint targets PSF extraction makes better use of the signal by weighting
-  it properly over the PSF, so that higher S/N photometry can be extracted.
+  it over the PSF, so that higher S/N photometry can be extracted.
 
 * The shorter cadence and producing an accurate PSF model makes it easier to
   find and correct for cosmic rays.
 
 * PSF photometry can properly deal with hot or bad pixels by either giving them
-  a lower weight or masking them entirely in the fitting process. This may become
-  critical as the detector ages in space, making it increasingly harder to find
-  "good" regions on the detector without bad pixels.
+  a lower weight or masking them entirely in the fitting process. This becomes
+  increasingly important as the detector ages in space.
 
 Are there reasons then to not always use PIPE when extracting photometry? Yes,
 because accurate PSF photometry requires accurate PSF modelling. The PSF in turn

@@ -70,7 +70,8 @@ class PipeParam:
                                             # the number of system virtual cores - 1
         self.bg_fit = 0          # Simultaneous background to be fit with PSF for each frame:
                                  # -1: no, 0: constant, [TBD: 1: bilinear plane, 2: parabolic]
-        self.bg_median = False   # Use the temporal median of bg instead of per frame?
+        self.circularise = True         # Ignore data outside circle inscribed in subarray frame
+        self.bg_median = False   # Use the temporal median of bg instead of per frame
         self.resample_im_times = False   # True if the time stamps for imagettes should
                                          # be corrected (early SOC bug) by interpolating
                                          # subarray times stamps. Not relevant for data

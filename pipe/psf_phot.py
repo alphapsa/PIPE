@@ -976,6 +976,11 @@ class PsfPhot:
         self.sa_hdr['PIPEXVER'] = (__version__, 'PIPE extraction version')
         self.sa_hdr['PROCTIME'] = (time.asctime(), 'PIPE processing date')
 
+        # Optionally enforce circular subarray
+        if self.pps.circularise:
+            apt = aperture(sa_raw.shape[-2:])
+            sa_raw[:,apt==False] = np.NaN
+
         # Define aperture mask
         self.sa_apt = np.isfinite(sa_raw[0])
 

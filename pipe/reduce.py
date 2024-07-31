@@ -99,11 +99,11 @@ def aperture(shape, radius=None, xc=None, yc=None):
     if radius is None:
         radius = int(0.5*np.min(shape))
     if xc is None:
-        xc = int(shape[1]/2)
+        xc = int(shape[1]/2)-1
     if yc is None:
-        yc = int(shape[0]/2)
+        yc = int(shape[0]/2)-1
     xmat,ymat = coo_mat(shape, xc, yc)
-    return xmat**2+ymat**2 < radius**2
+    return xmat**2+ymat**2 <= radius**2
 
 
 def cube_apt(shape, radius, xc=None, yc=None):
