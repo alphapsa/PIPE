@@ -68,8 +68,10 @@ class PipeParam:
                                         # text file with PSF library files
         self.nthreads = os.cpu_count()-1    # Number of threads to use; defaulted to 
                                             # the number of system virtual cores - 1
-        self.bg_fit = 0          # Simultaneous background to be fit with PSF:
+        self.bg_fit = 0          # Simultaneous background to be fit with PSF for each frame:
                                  # -1: no, 0: constant, [TBD: 1: bilinear plane, 2: parabolic]
+        self.circularise = True         # Ignore data outside circle inscribed in subarray frame
+        self.bg_median = False   # Use the temporal median of bg instead of per frame
         self.resample_im_times = False   # True if the time stamps for imagettes should
                                          # be corrected (early SOC bug) by interpolating
                                          # subarray times stamps. Not relevant for data
@@ -87,6 +89,11 @@ class PipeParam:
         self.mask_bg_stars_circle = True # Use a circular mask, otherwise PSF-shaped
         self.mask_bg_radius = 20         # Mask out BG stars to this radius in pixels (if masked out)
         self.mask_bg_level = 0.1         # If not circular mask, use this level of peak to define mask
+
+        self.remove_satellites = True  # If True, all frames are searched for an anisotropic background
+                                        # such as caused by satellites. 
+        self.satellite_klip1 = 10        # The insensitivity to one-satellite streaks
+        self.satellite_klip2 = 15        # The insensitivity to second satellite streaks
         self.centre = True       # If True, find the centre of the target star. Else, assume it is 
                                  # at the centre of the frame (plus default offsets)
         self.centre_psf_filename = None     # Filename of special PSF to be used for centroiding.
@@ -124,6 +131,10 @@ class PipeParam:
         self.cti_expo = -0.65      # CTI exponent
         self.cti_lim = 0.0333      # Limiting CTI
 
+        # Experimental non-linear tweak
+        self.non_lin_tweak = False
+        self.non_lin_tweak_params = (100, 700, 0.04, 800)   # Parameters used by experimental non-linear tweak
+
         # Binary parameters
         self.secondary = 1       # Entry of secondary in starcat (primary is
                                  # always entry 0)
@@ -152,6 +163,7 @@ class PipeParam:
         self.save_noise_cubes = False # Save estimated noise (raw/PSF/empiric) as fits cubes
         self.save_gain = False       # Save estimated gain table (with columns MJD, gain)
         self.save_bg_star_phot = True # If BG stars are fitted, save their photometry
+        self.save_satellites = True  # If satellite streaks are modelled, save them in cube.
         self.save_astrometry = False # For binaries, saves text file with separation
         
         # Extraction parameters
@@ -159,7 +171,7 @@ class PipeParam:
         self.sigma_clip = 15     # The residual/std-factor for masking
         self.sigma_clip_niter = 2    # Number of iterations used for sigma-clipping
         self.empiric_noise = True   # Use noise determined by statistics on residuals
-        self.empiric_sigma_clip = 4  # The sigma-clipping to use with empiric noise
+        self.empiric_sigma_clip = 10  # The sigma-clipping to use with empiric noise
         self.block_psf_level = 1e-4  # The level above which the PSF is blocked when
                                      # doing vertical smear correction
         self.centfit_rad = 23    # Find target and fit centroid inside this radius

@@ -232,8 +232,6 @@ def refine_bg_model(starids, data_frame, noise, mask, model, psf_norm,
         star_img = make_single_star_frame(data_frame.shape, work_cat, psf_mod, star_id, kx=kx, ky=ky)
         model -= psf_norm*star_img
         fit_frame = data_frame - model
-#        psf_smear = partial(multi_psf, psf_mod=psf_mod,
-#                            dxs=work_cat.dxs[star_id], dys=work_cat.dys[star_id])
         psf_smear = MultiPSF(psf_mod=psf_mod, dxs=work_cat.dxs[star_id],
                              dys=work_cat.dys[star_id])
         psf_rad = work_cat.rad[star_id]
@@ -244,13 +242,6 @@ def refine_bg_model(starids, data_frame, noise, mask, model, psf_norm,
         else:
             fitrad = 25
         
-#        fitstar_img, _bg, kmat, _sc, _w = psf_fit([psf_smear], fit_frame, noise,
-#                                                mask, xc=work_cat.x[star_id],
-#                                                yc=work_cat.y[star_id], 
-#                                                fitrad=fitrad, defrad=100,
-#                                                krn_scl=krn_scl, krn_rad=krn_rad,
-#                                                bg_fit=-1)
-
         fitstar_img, _bg, kmat, _sc, _w = psf_fit([psf_smear], fit_frame, noise,
                                                 mask, xc=work_cat.x[star_id],
                                                 yc=work_cat.y[star_id], 
@@ -259,8 +250,9 @@ def refine_bg_model(starids, data_frame, noise, mask, model, psf_norm,
                                                 bg_fit=-1)
         model += fitstar_img
         knorm = np.sum(kmat)
-        work_cat.fscale[star_id] *= knorm/(psf_norm*work_cat.fscale[star_id])
-        work_cat.coeff[star_id] = kmat[selk] / knorm
+        if knorm > 0:
+            work_cat.fscale[star_id] *= knorm/(psf_norm*work_cat.fscale[star_id])
+            work_cat.coeff[star_id] = kmat[selk] / knorm
     return work_cat
 
 

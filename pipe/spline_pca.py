@@ -60,7 +60,7 @@ class SplinePCA:
             if num_eigen < num_refs:
                 first_eigen = num_refs - num_eigen
         eigen_range = (first_eigen, num_refs - 1)
-        eival, eivec = eigh(np.matmul(T, T.T), eigvals = eigen_range) 
+        eival, eivec = eigh(np.matmul(T, T.T), subset_by_index=eigen_range) 
         base_vec = np.flip(np.matmul(T.T, eivec), axis=1)
         base_vec /= np.sum(base_vec**2, axis=0)**0.5
         return np.flip(eival), base_vec.T

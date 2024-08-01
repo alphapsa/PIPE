@@ -16,8 +16,8 @@ that are called from PsfPhot.
 """
 import os
 import pickle
+import time
 import numpy as np
-from astropy.io import fits
 
 from .analyse import psf_phot_cube
 from .cent import (
@@ -32,7 +32,7 @@ from .multi_cent import (
 from .multi_level import estimate as level_estimate
 from .level import ring_median as level_ring_median
 from .multi_psf import fit as multi_psf_fit, fit_binary as multi_psf_fit_binary
-from .optimal_params import TestParams, FindOptimal
+from .optimal_params import TestParams, FindOptimal, update_header
 from .pipe_log import PipeLog
 from .pipe_statistics import mad, sigma_clip
 from .psf_model import psf_model
@@ -47,11 +47,13 @@ from .read import (
 from .spline_pca import SplinePCA
 from .syntstar import star_bg, rotate_position, derotate_position, psf_radii
 from .multi_star import make_star_bg, refine_star_bg, make_bg_circ_mask_cube, make_bg_psf_mask_cube
+from .multi_satellites import make_aniso_bg
+from .non_lin import non_lin_tweak
 from .reduce import (
     resample_attitude, resample_imagette_time, aperture, integrate_psf,
-    interp_cube_ext, cube_apt, clean_cube2D, interp_cube, noise, psf_noise,
-    pix_mat, make_maskcube, rough_contrast, check_low, check_val, check_pos,
-    check_motion, check_mask, empiric_noise, cti_corr_fun, resid_smear
+    interp_cube_ext, clean_cube2D, noise, psf_noise, pix_mat, make_maskcube,
+    rough_contrast, check_low, check_val, check_pos, check_motion, check_mask,
+    empiric_noise, cti_corr_fun, resid_smear
 )
 from .version import __version__
 
@@ -71,14 +73,18 @@ class PsfPhot:
         
         self.mess(f'PIPE version {__version__}')
         self.plog.mess_list(self.pps.str_list()) # Save list of params to log
-        
+
+        if self.pps.file_sa_raw is None:
+            raise Exception(f'RAW_SubArray-file missing from {self.pps.datapath}')
+
+
         if self.pps.file_starcat is None:
             self.pps.bgstars = False
             self.pps.fit_bgstars = False
 
         if self.pps.Teff is None:
             if self.pps.file_starcat is None:
-                raise Exception('Without starcat, Teff needs to be defined')
+                raise Exception('Without EXT_PRE_StarCatalogue file, Teff needs to be defined')
             self.pps.Teff = self.read_Teff()
 
         # ----------- General variables
@@ -95,6 +101,10 @@ class PsfPhot:
         self.sa_sub = None      # Reduced cube with background (and dark)
                                 # subtracted, smearing corrected
         self.sa_bgstars = None  # Cube of background stars in subarray
+        self.sa_satellites = None  # Cube of complex backgeound/satellite streaks
+        self.sa_satellite_flag = None  # Array of flags defining nature of complex bg
+                                # 0 is none bg, 1 is 1 satellite, 2 is 2 satellites
+                                # 3 is complex background (e.g. gradient, wavy)
         self.sa_bg_mask = None  # Cube of PSF core mask of BG stars
         self.sa_dark = None     # Dark current subarray image scaled to exp. time
         self.sa_dark_err = None # Std error of subarray dark current image
@@ -402,6 +412,9 @@ class PsfPhot:
         if self.pps.remove_static:
             bg_mod += self.sa_stat_res
 
+        if self.pps.remove_satellites:
+            bg_mod += self.sa_satellites
+
         return bg_mod*self.sa_apt
 
 
@@ -440,6 +453,7 @@ class PsfPhot:
         """
         self.mess('--- Start processing subarray data with eigen')
         self.sa_bg_refined = False
+        self.sa_satellites_removed = False
         max_klip = len(self.eigen_psf)
         self.sa_best_mad = np.inf
 
@@ -486,9 +500,9 @@ class PsfPhot:
                 self.sa_dbg = dbg
                     
                 self.mess('Iter {:d} MAD sa: {:.2f} ppm'.format(n+1, mad(scale0)))
-                self.make_mask_cube_sa()
-                self.sa_mask_cube[sel==0] = self.sa_mask
                 res = self.compute_residuals_sa()
+                self.make_mask_cube_sa(res)
+                self.sa_mask_cube[sel==0] = self.sa_mask
         
                 if self.pps.smear_resid_sa:
                     self.update_smear_sa(res)
@@ -497,9 +511,21 @@ class PsfPhot:
                     self.compute_resid_stat_sa(res)
                     
                 self.sa_noise = (self.psf_noise_sa(np.abs(self.sa_psf_cube) +
-                                                np.abs(self.bg_model_sa()) +
+                                                 np.abs(self.bg_model_sa()) +
                                                 np.abs(self.sa_dark))**2 +
                                 self.sa_dark_err**2)**.5
+                
+                if self.pps.remove_satellites and self.sa_satellites_removed is False:
+                    # Only remove once
+                    self.sa_satellites_removed = True
+                    # Always remove static
+                    if params.bStat:
+                        res = self.compute_residuals_sa()
+                    else:
+                        self.compute_resid_stat_sa(res)
+                        res = self.compute_residuals_sa()
+                        self.sa_stat_res *= 0
+                    self.remove_satellites_sa(res)
 
                 if self.pps.bgstars and self.pps.fit_bgstars and self.sa_bg_refined is False:
                     # Only refine once
@@ -507,19 +533,21 @@ class PsfPhot:
                     self.make_star_bg_cube_sa()
                     self.sa_bg_refined = True
 
+
             flux, err = self.psf_phot_sa(self.sa_psf_cube, self.pps.fitrad)
             flag = self.flag_sa(scale, sel)
 
             sel = (flag==0)
             self.sa_mad = mad(scale[sel])
             self.mess('MAD sa: {:.2f} ppm'.format(mad(scale)))
-            curr_mad = mad(scale[sel])
+            curr_mad = self.sa_mad
             self.mess('MAD sa[flag==0]: {:.2f} ppm'.format(curr_mad))
             self.sa_flux = scale
             self.sa_sel = sel
 
             if curr_mad < self.sa_best_mad:
                 self.sa_best_mad = curr_mad
+                update_header(self.sa_hdr, params, curr_mad)
                 self.save_results_sa(scale, err, w, flag)
 
             return scale, dbg, flux, err, sel, w
@@ -548,7 +576,10 @@ class PsfPhot:
                         self.reduce_data_sa()
                     scale, dbg, flux, err, sel, w = test_iter(testparams)
                     current_mad = self.sa_mad
-                    self.mess('{:s}, mad={:.2f} [sa]'.format(str(testparams), current_mad), 0)
+                    if self.sa_mad == self.sa_best_mad: 
+                        self.mess('{:s}, mad={:.2f} [sa]*'.format(str(testparams), current_mad), 0)
+                    else:
+                        self.mess('{:s}, mad={:.2f} [sa]'.format(str(testparams), current_mad), 0)                        
                 nominal = fo.get_best()
                 self.mess('--- Iter best {:d}: {:s} [sa]'.format(n, str(nominal)), 0)
             self.mess('Optimisation done ({:d} iterations) [sa]'.format(len(fo.tested_params)), 0)
@@ -557,7 +588,8 @@ class PsfPhot:
             nominal.mad = None
             scale, dbg, flux, err, sel, w = test_iter(nominal, self.pps.sigma_clip_niter+1)
             self.mess('{:s}, mad={:.2f} [sa]'.format(str(nominal), self.sa_mad), 0)
-            self.mess('--- Done! [sa]', 0)
+            self.mess('--- Done! ({:s}/{:s} {:05d}) [sa]'.format(self.pps.name,
+                                                                 self.pps.visit, self.pps.version), 0)
 
         return  scale, dbg, flux, err, sel, w
 
@@ -630,9 +662,10 @@ class PsfPhot:
                 self.im_dbg = dbg
 
                 self.mess('Iter {:d} MAD im: {:.2f} ppm'.format(n+1, mad(scale0)))
-                self.make_mask_cube_im()
-                self.im_mask_cube[sel==0] = self.im_mask
+
                 res = self.compute_residuals_im()
+                self.make_mask_cube_im(res)
+                self.im_mask_cube[sel==0] = self.im_mask
 
                 if self.pps.smear_resid_im:
                     self.update_smear_im(res)
@@ -644,7 +677,7 @@ class PsfPhot:
                                                 np.abs(self.bg_model_im()) +
                                                 np.abs(self.im_dark))**2 +
                                 self.im_dark_err**2)**.5
-                
+
                 if self.pps.bgstars and self.pps.fit_bgstars and self.im_bg_refined is False:
                     # Only refince once
                     self.refine_star_bg_im()
@@ -664,6 +697,7 @@ class PsfPhot:
 
             if curr_mad < self.im_best_mad:
                 self.im_best_mad = curr_mad
+                update_header(self.im_hdr, params, curr_mad)
                 self.save_results_im(scale, err, w, flag)
 
             return scale, dbg, flux, err, sel, w
@@ -692,7 +726,10 @@ class PsfPhot:
                         self.reduce_data_im()
                     scale, dbg, flux, err, sel, w = test_iter(testparams)
                     current_mad = self.im_mad
-                    self.mess('{:s}, mad={:.2f} [im]'.format(str(testparams), current_mad), 0)
+                    if self.im_mad == self.im_best_mad: 
+                        self.mess('{:s}, mad={:.2f} [im]*'.format(str(testparams), current_mad), 0)
+                    else:
+                        self.mess('{:s}, mad={:.2f} [im]'.format(str(testparams), current_mad), 0)                        
                 nominal = fo.get_best()
                 self.mess('--- Iter best {:d}: {:s} [im]'.format(n, str(nominal)), 0)
             self.mess('Optimisation done ({:d} iterations) [im]'.format(len(fo.tested_params)), 0)
@@ -701,7 +738,8 @@ class PsfPhot:
             nominal.mad = None
             scale, dbg, flux, err, sel, w = test_iter(nominal, self.pps.sigma_clip_niter+1)
             self.mess('{:s}, mad={:.2f} [im]'.format(str(nominal), self.im_mad), 0)
-            self.mess('--- Done! [im]', 0)
+            self.mess('--- Done! ({:s}/{:s} {:05d}) [im]'.format(self.pps.name,
+                                                                 self.pps.visit, self.pps.version), 0)
 
         return  scale, dbg, flux, err, sel, w
 
@@ -749,6 +787,9 @@ class PsfPhot:
         if self.pps.save_bg_models:
             self.save_bg_model_sa('')
 
+        if self.pps.remove_satellites and self.pps.save_satellites:
+            self.save_satellites_sa('')
+
         self.save_eigen_sa(flag, scale, scale*err,
                            self.sa_dbg + self.sa_bg, w)
 
@@ -783,7 +824,7 @@ class PsfPhot:
             self.save_bg_im('')
 
         if self.pps.save_bg_models:
-            self.save_bg_model_sa('')
+            self.save_bg_model_im('')
 
         self.save_eigen_im(flag, scale, scale*err,
                            self.im_dbg + self.im_bg, w)
@@ -855,7 +896,13 @@ class PsfPhot:
         self.mess('  Median: {:.2f} Std: {:.2f} Min: {:.2f} Max: {:.2f}'.format(
             np.nanmedian(self.sa_bg), np.nanstd(self.sa_bg),
             np.nanmin(self.sa_bg), np.nanmax(self.sa_bg)))
-        sa_sub -= self.sa_apt*self.sa_bg[:, None, None]
+        
+        if self.pps.bg_median:
+            self.mess('Using median background [sa]')
+            sa_sub -= self.sa_apt[None, :, :]*np.nanmedian(self.sa_bg)
+        else:
+            sa_sub -= self.sa_apt*self.sa_bg[:, None, None]
+
         self.sa_sub = sa_sub
         
         self.sa_noise = self.raw_noise_sa()
@@ -891,7 +938,12 @@ class PsfPhot:
         self.mess('Inteprolating background levels from subarrays [im]')
         self.sa_bg2im_bg()
 
-        im_sub -= self.im_apt*self.im_bg[:, None, None]
+        if self.pps.bg_median:
+            self.mess('Using median background [im]')
+            im_sub -= self.im_apt[None, :, :]*np.nanmedian(self.im_bg)
+        else:
+            im_sub -= self.im_apt*self.im_bg[:, None, None]
+
         self.im_sub = im_sub
 
         self.im_noise = self.raw_noise_im()
@@ -921,6 +973,13 @@ class PsfPhot:
             read_raw_datacube(self.pps.file_sa_raw, self.pps.sa_range)
         self.sa_nexp = self.sa_hdr['NEXP']
         self.sa_off = (self.sa_hdr['X_WINOFF'], self.sa_hdr['Y_WINOFF'])
+        self.sa_hdr['PIPEXVER'] = (__version__, 'PIPE extraction version')
+        self.sa_hdr['PROCTIME'] = (time.asctime(), 'PIPE processing date')
+
+        # Optionally enforce circular subarray
+        if self.pps.circularise:
+            apt = aperture(sa_raw.shape[-2:])
+            sa_raw[:,apt==False] = np.NaN
 
         # Define aperture mask
         self.sa_apt = np.isfinite(sa_raw[0])
@@ -937,6 +996,10 @@ class PsfPhot:
 
         # Initialise frame for static residual image
         self.sa_stat_res = 0 * sa_raw[0]
+
+        # If satellites are to be removed, initialise cube
+        if self.pps.remove_satellites:
+            self.sa_satellites = np.zeros_like(sa_raw)
 
         # Mutliply with gain
         gain = self.gain_fun(self.sa_mjd) * np.ones_like(self.sa_mjd)
@@ -966,6 +1029,10 @@ class PsfPhot:
             self.nonlinfun = nonlinear(self.pps.file_nonlin)
             self.mess('Correcting non-linearity [sa]')
             sa_raw *= self.nonlinfun(sa_raw / gain[:,None,None] / self.sa_nexp)
+            if self.pps.non_lin_tweak:
+                self.mess('Tweaking non-linearity [sa]')
+                sa_raw /= non_lin_tweak(sa_raw, nexp=self.sa_nexp,
+                                        params=self.pps.non_lin_tweak_params)
         else:
             self.mess('No correction for non-linearity. [sa]')
         self.sa_debias = sa_raw
@@ -995,7 +1062,10 @@ class PsfPhot:
         self.im_nexp = self.im_hdr['NEXP']
         self.nexp = self.sa_nexp / self.im_nexp
         self.im_off, self.im_sa_off = imagette_offset(self.pps.file_im)
-        
+        self.im_hdr['PIPEXVER'] = (__version__, 'PIPE extraction version')
+        self.im_hdr['PROCTIME'] = (time.asctime(), 'PIPE processing date')
+
+
         # Define aperture mask
         self.im_apt = np.isfinite(im_raw[0])
 
@@ -1040,6 +1110,10 @@ class PsfPhot:
             self.nonlinfun = nonlinear(self.pps.file_nonlin)
             self.mess('Correcting non-linearity [im]')
             im_raw *= self.nonlinfun(im_raw / gain[:,None,None] / self.im_nexp)
+            if self.pps.non_lin_tweak:
+                self.mess('Tweaking non-linearity [im]')
+                im_raw /= non_lin_tweak(im_raw, nexp=self.im_nexp,
+                                        params=self.pps.non_lin_tweak_params)
         else:
             self.mess('No correction for non-linearity. [im]')
         self.im_debias = im_raw
@@ -1667,10 +1741,10 @@ class PsfPhot:
         return apt
 
 
-    def make_mask_cube_sa(self):
+    def make_mask_cube_sa(self, res):
         """Use a model of how the data should look like, the expected
         noise, and sigma-clipping to mask too deviating pixels 
-        (e.g. cosmic rays). Only look for bad pixels inside radius.
+        (e.g. cosmic rays).
         """
         if not self.pps.mask_badpix:
             self.mess('No mask cube [sa].', level=2)
@@ -1678,19 +1752,16 @@ class PsfPhot:
         self.mess('Make mask cube [sa]')
         if self.pps.empiric_noise:
             clip = self.pps.empiric_sigma_clip
-            self.mess('Using empiric noise for mask cube (clip={:.1f}) [sa]'.format(clip))
-            res = self.compute_residuals_sa()
+            self.mess('  Using empiric noise for mask cube (clip={:.1f}) [sa]'.format(clip))
             noise_cube = empiric_noise(res, self.sa_xc, self.sa_yc, self.sa_dbg + self.sa_bg)
         else:
             noise_cube = self.sa_noise
             clip = self.pps.sigma_clip
 
-        self.sa_mask_cube = make_maskcube(self.sa_sub, noise_cube,
-                                          self.sa_psf_cube + self.bg_model_sa(),
-                                          mask=self.sa_mask, clip=clip)
+        self.sa_mask_cube = make_maskcube(res, noise_cube, mask=self.sa_mask, clip=clip)
 
 
-    def make_mask_cube_im(self):
+    def make_mask_cube_im(self, res):
         """Use a model of how the data should look like, the expected
         noise, and sigma-clipping to mask too deviating pixels 
         (e.g. cosmic rays). Only look for bad pixels inside radius.
@@ -1701,15 +1772,12 @@ class PsfPhot:
         self.mess('Make mask cube [im]')
         if self.pps.empiric_noise:
             clip = self.pps.empiric_sigma_clip
-            self.mess('Using empiric noise for mask cube (clip={:.1f}) [im]'.format(clip))
-            res = self.compute_residuals_im()
+            self.mess('  Using empiric noise for mask cube (clip={:.1f}) [im]'.format(clip))
             noise_cube = empiric_noise(res, self.im_xc, self.im_yc, self.im_dbg + self.im_bg)
         else:
             noise_cube = self.im_noise
             clip = self.pps.sigma_clip
-        self.im_mask_cube = make_maskcube(self.im_sub, noise_cube,
-                                          self.im_psf_cube + self.bg_model_im(),
-                                          mask=self.im_mask, clip=clip)
+        self.im_mask_cube = make_maskcube(res, noise_cube, mask=self.im_mask, clip=clip)
 
 
     def make_star_bg_cube_sa(self, skip=[0]):
@@ -1898,6 +1966,39 @@ class PsfPhot:
                                 fluxes,
                                 gaiaID,
                                 self.im_hdr)
+
+
+    def remove_satellites_sa(self, res):
+        """ Searches for satellite streaks and other strong anisotropic
+        background features, and then attempts to model those features.
+        Models are then saved in cube for later use in the background model.
+        """
+        self.mess('Modelling and removing satellites [sa]')
+        self.sa_satellites, flag = make_aniso_bg(res,
+                                            edge=20,
+                                            klip=self.pps.satellite_klip1,
+                                            klip2=self.pps.satellite_klip2,
+                                            nthreads=self.pps.nthreads)
+        self.sa_satellite_flag = flag
+        Nframes = len(flag)
+        if np.sum(flag==1) == 0:
+            self.mess(f'   No single satellite crossings in {Nframes} frames')
+        else:
+            self.mess(f'  {np.sum(flag==1)}/{Nframes} single satellite crossings detected:')
+            self.mess(f'{np.where(flag==1)[0]}')
+
+        if np.sum(flag==2) == 0:
+            self.mess(f'   No double satellite crossings in {Nframes} frames')
+        else:
+            self.mess(f'  {np.sum(flag==2)}/{Nframes} double satellite crossings detected:')
+            self.mess(f'{np.where(flag==2)[0]}')
+
+        if np.sum(flag==3) == 0:
+            self.mess(f'   No complex background in {Nframes} frames')
+        else:
+            self.mess(f'  {np.sum(flag==3)}/{Nframes} complex backgrounds detected:')
+            self.mess(f'{np.where(flag==3)[0]}')
+
 
 
     def has_source(self, data, mask=None, clip=5, niter=10):
@@ -2114,7 +2215,7 @@ class PsfPhot:
 
 
     def save_bg_model_sa(self, prefix):
-        """Save bg model including bg stars, smear, and static
+        """Save bg model including bg stars, smear, satellites, and static
         """
         self.save_cube_fits(prefix+'bg_model_sa.fits', self.bg_model_sa())
 
@@ -2123,6 +2224,12 @@ class PsfPhot:
         """Save bg model including bg stars, smear, and static
         """
         self.save_cube_fits(prefix+'bg_model_im.fits', self.bg_model_im())
+
+
+    def save_satellites_sa(self, prefix):
+        """Save satellite bg model cube
+        """
+        self.save_cube_fits(prefix+'satellites_sa.fits', self.sa_satellites)
 
 
     def check_calibration_files(self):
@@ -2148,9 +2255,7 @@ class PsfPhot:
             self.mess("WARNING: No nonlin.npy calibration file")
             self.pps.non_lin = False
 
-
-
-
+    
     #----------- Methods for binary extractions below
 
     def define_binary_psf_library(self):
@@ -2276,9 +2381,9 @@ class PsfPhot:
             self.mess('Iter {:d} MAD sa0: {:.2f} ppm'.format(n+1, mad(scale00)))
             self.mess('Iter {:d} MAD sa1: {:.2f} ppm'.format(n+1, mad(scale10)))
             bg = np.interp(t, t0, bg0)
-            self.make_mask_cube_sa(psf_cube0+psf_cube1, bg)
-            self.sa_mask_cube[sel==0] = self.sa_mask
             res = self.sa_sub - (psf_cube0+psf_cube1) - bg[:,None,None]
+            self.make_mask_cube_sa(res)
+            self.sa_mask_cube[sel==0] = self.sa_mask
             if self.pps.remove_static:
                 self.sa_stat_res = np.nanmedian(res, axis=0)
 #            self.remove_resid_smear_sa(res, (psf_cube0+psf_cube1))
@@ -2364,9 +2469,9 @@ class PsfPhot:
             self.mess('Iter {:d} MAD im0: {:.2f} ppm'.format(n+1, mad(scale00)))
             self.mess('Iter {:d} MAD im1: {:.2f} ppm'.format(n+1, mad(scale10)))
             bg = np.interp(t, t0, bg0)
-            self.make_mask_cube_im(psf_cube0+psf_cube1, bg)
-            self.im_mask_cube[sel==0] = self.im_mask
             res = self.im_sub - (psf_cube0+psf_cube1) - bg[:,None,None]
+            self.make_mask_cube_im(res)
+            self.im_mask_cube[sel==0] = self.im_mask
             if self.pps.remove_static:
                 self.im_stat_res = np.nanmedian(res, axis=0)
             self.im_noise = (self.psf_noise_im((psf_cube0+psf_cube1) + self.im_bg[:, None, None] +
