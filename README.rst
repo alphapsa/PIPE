@@ -47,7 +47,6 @@ updated PIPE manual can be found at overleaf:
 
 https://www.overleaf.com/read/ftwcbvsxdsyd#657246
 
-
 Original author: Alexis Brandeker <alexis@astro.su.se>, Stockholm University.
 
 License
