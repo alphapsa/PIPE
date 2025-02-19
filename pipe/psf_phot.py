@@ -979,7 +979,7 @@ class PsfPhot:
         # Optionally enforce circular subarray
         if self.pps.circularise:
             apt = aperture(sa_raw.shape[-2:])
-            sa_raw[:,apt==False] = np.NaN
+            sa_raw[:,apt==False] = np.nan
 
         # Define aperture mask
         self.sa_apt = np.isfinite(sa_raw[0])
