@@ -19,7 +19,7 @@ from .psf import fit as psf_fit
 
 class WorkCat:
     """Data class for processed catalog data for a single frame that are
-    relevantfor producing a star background.
+    relevant for producing a star background.
     """
     def __init__(self, x, y, fscale, dxs, dys, star_radii):
         self.catsize = len(x)
