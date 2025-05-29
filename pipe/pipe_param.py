@@ -107,7 +107,7 @@ class PipeParam:
         self.mask_badpix = True  # True if bad pixels are to be masked
         self.mask_level = 2      # Mask out all before: 0 none, -2 dead pixels, -1 half-dead pixels, 
                                  # 3 telegraphic pixels, 2 saturated pixels, 1 hot pixels
-        self.smear_corr = True   # True if smearing is to be corrected
+        self.smear_corr = 1      # 0 for no smearing, 1 for model smearing, 2 for overscan smearing correction
         self.smear_resid_sa = False  # True if residual smearing effect is to be removed
         self.smear_resid_im = False # True if residual smearing effect is to be removed
         self.remove_static = True   # True if median of residual cube ("static") is to 

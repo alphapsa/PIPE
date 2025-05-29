@@ -53,6 +53,17 @@ def raw_datacube(filename, frame_range=None):
     return rawcube, mjd, hdr, tab
 
 
+def top_overscan(filename, frame_range=None):
+    """Read top overscan region from CHEOPS raw datacube 
+    subarray. Returns datacube with overscan region.
+    """
+    with fits.open(filename) as hdul:
+        rawcube = np.array(hdul[8].data, dtype='f8')
+    if frame_range is not None:
+        return rawcube[frame_range[0]:frame_range[1]]
+    return rawcube
+
+
 def lightcurve(filename):
     """Reads the DRP (or PIPE) lightcurve fits file,
          returns a numpy dict table

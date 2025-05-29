@@ -497,6 +497,16 @@ def resid_smear(data, clip=3, niter=10):
     return m
 
 
+def overscan_smear(overscan, bg_col=25):
+    """From overscan cube, compute smear trail. Returns
+    vertical 1D smear for each frame. 
+    """
+    left = np.median(overscan[:,:,:bg_col])
+    right = np.median(overscan[:,:,-bg_col:])
+    smear = np.median(overscan, axis=1)-0.5*(left+right)
+    return smear
+
+
 def make_maskcube(residual_cube, noise_cube, mask=None, clip=5):
     """Find pixels that deviate too much from fitted models, and
     produce a cube of masks.

@@ -38,7 +38,8 @@ from .pipe_statistics import mad, sigma_clip
 from .psf_model import psf_model
 from .psf_library import PSF_Library
 from .read import (
-    imagette_offset, raw_datacube as read_raw_datacube, attitude, gain as read_gain,
+    imagette_offset, raw_datacube as read_raw_datacube, top_overscan as 
+    read_top_overscan, attitude, gain as read_gain,
     bias_ron_adu, thermFront_2, mjd2bjd, nonlinear, flatfield, starcat,
     save_eigen_fits, save_bg_star_phot_fits, save_binary_eigen_fits, sub_image_indices,
     dark as read_dark, bad as read_bad, PSFs as load_PSFs, read_psf_filenames,
@@ -53,7 +54,7 @@ from .reduce import (
     resample_attitude, resample_imagette_time, aperture, integrate_psf,
     interp_cube_ext, clean_cube2D, noise, psf_noise, pix_mat, make_maskcube,
     rough_contrast, check_low, check_val, check_pos, check_motion, check_mask,
-    empiric_noise, cti_corr_fun, resid_smear
+    empiric_noise, cti_corr_fun, overscan_smear, resid_smear
 )
 from .version import __version__
 
@@ -990,12 +991,8 @@ class PsfPhot:
         # Initialise data cube with star background
         self.sa_bgstars = np.zeros_like(sa_raw)
 
-        # Initialise data cube for smear (# frames x width)
-        self.sa_smear = np.zeros(sa_raw.shape[0:3:2])
-        self.sa_smear_resid = np.zeros(sa_raw.shape[0:3:2])
-
         # Initialise frame for static residual image
-        self.sa_stat_res = 0 * sa_raw[0]
+        self.sa_stat_res = np.zeros_like(sa_raw[0])
 
         # If satellites are to be removed, initialise cube
         if self.pps.remove_satellites:
@@ -1007,6 +1004,15 @@ class PsfPhot:
         
         # Subtract bias
         sa_raw -= self.bias*self.sa_nexp
+
+        if self.pps.smear_corr == 2: # Overscan smearing correction
+            sa_smear = read_top_overscan(self.pps.file_sa_raw, self.pps.sa_range)
+            sa_smear *= gain[:,None,None]
+            sa_smear -= self.bias*self.sa_nexp
+        else:
+            # Initialise data cube for smear (# frames x width)
+            sa_smear = np.zeros(sa_raw.shape[0:3:2])
+        self.sa_smear_resid = np.zeros(sa_raw.shape[0:3:2])
 
         # Flatfield
         if self.pps.flatfield:
@@ -1021,6 +1027,7 @@ class PsfPhot:
             self.update_cti_fun(np.mean(self.sa_mjd))        
             self.mess('Applying CTI correction. [sa]')
             sa_raw *= self.cti_corr_fun(sa_raw / gain[:,None,None] / self.sa_nexp)
+            sa_smear *= self.cti_corr_fun(sa_smear / gain[:,None,None] / self.sa_nexp)
         else:
             self.mess('Not applying CTI correction. [sa]')
 
@@ -1029,14 +1036,23 @@ class PsfPhot:
             self.nonlinfun = nonlinear(self.pps.file_nonlin)
             self.mess('Correcting non-linearity [sa]')
             sa_raw *= self.nonlinfun(sa_raw / gain[:,None,None] / self.sa_nexp)
+            sa_smear *= self.nonlinfun(sa_smear / gain[:,None,None] / self.sa_nexp)
+
             if self.pps.non_lin_tweak:
                 self.mess('Tweaking non-linearity [sa]')
                 sa_raw /= non_lin_tweak(sa_raw, nexp=self.sa_nexp,
                                         params=self.pps.non_lin_tweak_params)
+                sa_smear /= non_lin_tweak(sa_smear, nexp=self.sa_nexp,
+                                        params=self.pps.non_lin_tweak_params)
         else:
             self.mess('No correction for non-linearity. [sa]')
-        self.sa_debias = sa_raw
 
+        if self.pps.smear_corr == 2: # Overscan smearing correction
+            self.mess('Using overscan smearing correction. [sa]')
+            sa_smear = overscan_smear(sa_smear)
+
+        self.sa_debias = sa_raw
+        self.sa_smear = sa_smear
 
 
     def read_imagettes(self):
@@ -1065,7 +1081,6 @@ class PsfPhot:
         self.im_hdr['PIPEXVER'] = (__version__, 'PIPE extraction version')
         self.im_hdr['PROCTIME'] = (time.asctime(), 'PIPE processing date')
 
-
         # Define aperture mask
         self.im_apt = np.isfinite(im_raw[0])
 
@@ -1075,12 +1090,16 @@ class PsfPhot:
         # Initialise data cube with star background
         self.im_bgstars = np.zeros_like(im_raw)
 
-        # Initialise data cube for smear (# frames x width)
-        self.im_smear = np.zeros(im_raw.shape[0:3:2])
+        if self.pps.smear_corr == 2: # Overscan smearing correction
+            i0, i1, _j0, _j1 = sub_image_indices(self.im_sa_off, self.im_apt.shape)
+            self.im_smear = self.sa_smear[:,i0:i1].repeat(int(self.nexp), axis=0)/self.nexp
+        else:
+            # Initialise data cube for smear (# frames x width)
+            self.im_smear = np.zeros(im_raw.shape[0:3:2])
         self.im_smear_resid = np.zeros(im_raw.shape[0:3:2])
 
         # Initialise frame for static residual image
-        self.im_stat_res = 0 * im_raw[0]
+        self.im_stat_res = np.zeros_like(im_raw[0])
 
         # Mutliply with gain
         gain = self.gain_fun(self.im_mjd) * np.ones_like(self.im_mjd)
@@ -1390,7 +1409,7 @@ class PsfPhot:
         star catalogue, and the given subarray PSF.
         """
         self.sa_smear = np.zeros(self.sa_debias.shape[0:3:2])
-        if not self.pps.bgstars or not self.pps.smear_corr:
+        if not self.pps.bgstars or self.pps.smear_corr != 1:
             self.mess('No smearing correction update [sa].', level=2)
             return
         limflux = self.smear_limit()
@@ -1417,7 +1436,7 @@ class PsfPhot:
         star catalogue, and the given imagette PSF.
         """
         self.im_smear = np.zeros(self.im_debias.shape[0:3:2])
-        if not self.pps.bgstars or not self.pps.smear_corr:
+        if not self.pps.bgstars or self.pps.smear_corr != 1:
             self.mess('No smearing correction update [im].', level=2)
             return
 
