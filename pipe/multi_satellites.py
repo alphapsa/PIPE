@@ -77,7 +77,8 @@ def make_aniso_bg(res_cube, edge=20, klip=3, klip2=10, nthreads=16):
     with mp.Pool(nthreads) as p:
         outparam = p.starmap(make_aniso_iter, inparam)
     
-    bgs[bg_list] = outparam
+    if len(outparam) > 0:
+        bgs[bg_list] = outparam
     flags[bg_list] = 3
 
     return bgs, flags    

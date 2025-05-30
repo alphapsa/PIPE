@@ -345,7 +345,6 @@ class PsfPhot:
         # Compute background stars and smearing
         self.make_star_bg_cube_sa(skip=skip_bg_stars)
         self.make_bg_mask_sa(skip=skip_bg_stars)
-        self.compute_smearing_sa()
 
         self.sa_norm, self.sa_apt_flux = self.comp_fix_apt_phot(self.sa_sub,
                             self.sa_bgstars, self.sa_smear,
@@ -353,17 +352,18 @@ class PsfPhot:
                             self.psf, self.pps.normrad)
         self.sa_flux = self.sa_norm*np.ones(len(self.sa_debias))
         self.sa_sel = np.ones(len(self.sa_flux), dtype='?')
+        self.compute_smearing_sa()
 
         if self.pps.file_im is not None:
             self.make_star_bg_cube_im(skip=skip_bg_stars)
             self.make_bg_mask_im(skip=skip_bg_stars)
-            self.compute_smearing_im()
             self.im_norm, self.im_apt_flux = self.comp_fix_apt_phot(self.im_sub,
                                 self.im_bgstars, self.im_smear,
                                 self.im_xc, self.im_yc,
                                 self.psf, self.pps.normrad)
             self.im_flux = self.im_norm*np.ones(len(self.im_debias))
             self.im_sel = np.ones(len(self.im_flux), dtype='?')
+            self.compute_smearing_im()
 
         
     def comp_fix_apt_phot(self, datacube, bg_cube, smear, xc, yc, psf_mod, radius):
@@ -408,7 +408,7 @@ class PsfPhot:
             bg_mod += self.sa_norm * self.sa_bgstars
         
         if self.pps.smear_corr:
-            bg_mod += self.sa_norm * (self.sa_smear+self.sa_smear_resid)[:, None, :]
+            bg_mod += (self.sa_smear+self.sa_smear_resid)[:, None, :]
 
         if self.pps.remove_static:
             bg_mod += self.sa_stat_res
@@ -432,7 +432,7 @@ class PsfPhot:
             bg_mod += self.im_norm * self.im_bgstars
         
         if self.pps.smear_corr:
-            bg_mod += self.im_norm * (self.im_smear+self.im_smear_resid)[:, None, :]
+            bg_mod += (self.im_smear+self.im_smear_resid)[:, None, :]
 
         if self.pps.remove_static:
             bg_mod += self.im_stat_res
@@ -804,6 +804,9 @@ class PsfPhot:
         if self.pps.save_static:
             self.save_cube_fits('static_sa.fits', self.sa_stat_res)
 
+        if self.pps.save_smear:
+            self.save_cube_fits('smear_sa.fits', self.sa_smear)
+
         if self.pps.save_noise_cubes:
             self.save_cube_fits('psf_noise_sa.fits', self.sa_noise)
             self.save_cube_fits('raw_noise_sa.fits', self.raw_noise_sa())
@@ -839,6 +842,9 @@ class PsfPhot:
 
         if self.pps.save_static:
             self.save_cube_fits('static_im.fits', self.im_stat_res)
+
+        if self.pps.save_smear:
+            self.save_cube_fits('smear_im.fits', self.im_smear)
 
         if self.pps.save_noise_cubes:
             self.save_cube_fits('psf_noise_im.fits', self.im_noise)
@@ -1408,10 +1414,10 @@ class PsfPhot:
         """Compute the smearing correction using stars from the
         star catalogue, and the given subarray PSF.
         """
-        self.sa_smear = np.zeros(self.sa_debias.shape[0:3:2])
         if not self.pps.bgstars or self.pps.smear_corr != 1:
             self.mess('No smearing correction update [sa].', level=2)
             return
+ #       self.sa_smear = np.zeros(self.sa_debias.shape[0:3:2])
         limflux = self.smear_limit()
         num_bright = np.sum(self.starcat.fscale>=limflux)
         self.mess('Smear limit flux: {:.2e} ({:d} stars) [sa]'.format(limflux, num_bright))
@@ -1424,7 +1430,7 @@ class PsfPhot:
         for n in range(len(self.sa_sub)):
             xc = self.sa_xc[n]
             yc = yoff + self.sa_yc[n]
-            self.sa_smear[n] = self.pps.smear_fact * self.starcat.smear(xc, yc,
+            self.sa_smear[n] = self.sa_norm * self.pps.smear_fact * self.starcat.smear(xc, yc,
                                                           self.sa_att[n,3],
                                                           shape=shape,
                                                           limflux=limflux)
@@ -1435,11 +1441,11 @@ class PsfPhot:
         """Compute the smearing correction using stars from the
         star catalogue, and the given imagette PSF.
         """
-        self.im_smear = np.zeros(self.im_debias.shape[0:3:2])
         if not self.pps.bgstars or self.pps.smear_corr != 1:
             self.mess('No smearing correction update [im].', level=2)
             return
 
+#        self.im_smear = np.zeros(self.im_debias.shape[0:3:2])
         limflux = self.smear_limit()
         num_bright = np.sum(self.starcat.fscale>=limflux)
         self.mess('Smear limit flux: {:.2e} ({:d} stars) [im]'.format(limflux, num_bright))
@@ -1452,7 +1458,7 @@ class PsfPhot:
         for n in range(len(self.im_sub)):
             xc = self.im_xc[n]
             yc = yoff + self.im_yc[n]
-            self.im_smear[n] = self.pps.smear_fact * self.starcat.smear(xc, yc,
+            self.im_smear[n] = self.im_norm * self.pps.smear_fact * self.starcat.smear(xc, yc,
                                                           self.im_att[n,3],
                                                           shape=shape,
                                                           limflux=limflux)
@@ -1489,7 +1495,7 @@ class PsfPhot:
         """
         self.mess('Removing residual smear [sa]')
         for n in range(len(res)):
-            self.sa_smear_resid[n] += resid_smear(res[n])/self.sa_norm
+            self.sa_smear_resid[n] += resid_smear(res[n])
 
 
     def update_smear_im(self, res):
@@ -1500,7 +1506,7 @@ class PsfPhot:
         """
         self.mess('Removing residual smear [im]')
         for n in range(len(res)):
-            self.im_smear_resid[n] += resid_smear(res[n])/self.im_norm
+            self.im_smear_resid[n] += resid_smear(res[n])
 
 
     def sa_bg2im_bg(self):

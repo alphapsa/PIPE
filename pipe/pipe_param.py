@@ -163,9 +163,10 @@ class PipeParam:
         self.save_noise_cubes = False # Save estimated noise (raw/PSF/empiric) as fits cubes
         self.save_gain = False       # Save estimated gain table (with columns MJD, gain)
         self.save_bg_star_phot = True # If BG stars are fitted, save their photometry
+        self.save_smear = False      # Save smear model for all frames
         self.save_satellites = True  # If satellite streaks are modelled, save them in cube.
         self.save_astrometry = False # For binaries, saves text file with separation
-        
+
         # Extraction parameters
         self.klip = 5            # Number of eigen components of PSF to use.
         self.sigma_clip = 15     # The residual/std-factor for masking
