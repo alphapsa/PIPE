@@ -1027,7 +1027,7 @@ class PsfPhot:
             self.update_cti_fun(np.mean(self.sa_mjd))        
             self.mess('Applying CTI correction. [sa]')
             sa_raw *= self.cti_corr_fun(sa_raw / gain[:,None,None] / self.sa_nexp)
-            sa_smear *= self.cti_corr_fun(sa_smear / gain[:,None,None] / self.sa_nexp)
+            sa_smear *= self.cti_corr_fun(sa_smear / np.median(gain) / self.sa_nexp)
         else:
             self.mess('Not applying CTI correction. [sa]')
 
@@ -1036,7 +1036,7 @@ class PsfPhot:
             self.nonlinfun = nonlinear(self.pps.file_nonlin)
             self.mess('Correcting non-linearity [sa]')
             sa_raw *= self.nonlinfun(sa_raw / gain[:,None,None] / self.sa_nexp)
-            sa_smear *= self.nonlinfun(sa_smear / gain[:,None,None] / self.sa_nexp)
+            sa_smear *= self.nonlinfun(sa_smear / np.median(gain) / self.sa_nexp)
 
             if self.pps.non_lin_tweak:
                 self.mess('Tweaking non-linearity [sa]')

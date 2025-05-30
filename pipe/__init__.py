@@ -26,7 +26,7 @@ from .multi_psf import fit as multi_psf_fit, fit_binary as multi_psf_fit_binary
 from .non_lin import non_lin_tweak
 from .pipe_log import PipeLog
 from .read import (
-    imagette_offset, raw_datacube, attitude, gain,
+    imagette_offset, raw_datacube, top_overscan, attitude, gain,
     bias_ron_adu, thermFront_2, mjd2bjd, nonlinear, flatfield, starcat,
     save_eigen_fits, save_binary_eigen_fits, sub_image_indices,
     dark as read_dark, bad as read_bad
@@ -36,7 +36,7 @@ from .reduce import (
     resample_attitude, resample_imagette_time, aperture, integrate_psf,
     interp_cube_ext, cube_apt, clean_cube2D, interp_cube, noise, psf_noise,
     pix_mat, make_maskcube, rough_contrast, check_low, check_val, check_pos,
-    check_motion, check_mask
+    check_motion, check_mask, overscan_smear, resid_smear
 )
 from .pipe_control import PipeControl
 from .pipe_param import PipeParam
