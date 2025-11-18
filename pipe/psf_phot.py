@@ -453,6 +453,7 @@ class PsfPhot:
         integrated 'flux'.
         """
         self.mess('--- Start processing subarray data with eigen')
+        self.sa_smear_refined = False
         self.sa_bg_refined = False
         self.sa_satellites_removed = False
         max_klip = len(self.eigen_psf)
@@ -504,7 +505,11 @@ class PsfPhot:
                 res = self.compute_residuals_sa()
                 self.make_mask_cube_sa(res)
                 self.sa_mask_cube[sel==0] = self.sa_mask
-        
+
+                if self.pps.smear_corr == 1 and self.sa_smear_refined is False:
+                    self.compute_smearing_sa(target_fit=True)
+                    self.sa_smear_refined = True
+
                 if self.pps.smear_resid_sa:
                     self.update_smear_sa(res)
                     res = self.compute_residuals_sa()
@@ -533,6 +538,7 @@ class PsfPhot:
                     self.refine_star_bg_sa()
                     self.make_star_bg_cube_sa()
                     self.sa_bg_refined = True
+
 
 
             flux, err = self.psf_phot_sa(self.sa_psf_cube, self.pps.fitrad)
@@ -609,6 +615,7 @@ class PsfPhot:
         """
         self.mess('--- Start processing imagette data with eigen')
         self.im_bg_refined = False
+        self.im_smear_refined = False
         max_klip = len(self.eigen_psf)
         self.im_best_mad = np.inf
 
@@ -667,6 +674,10 @@ class PsfPhot:
                 res = self.compute_residuals_im()
                 self.make_mask_cube_im(res)
                 self.im_mask_cube[sel==0] = self.im_mask
+
+                if self.pps.smear_corr == 1 and self.im_smear_refined is False:
+                    self.compute_smearing_im(target_fit=True)
+                    self.im_smear_refined = True
 
                 if self.pps.smear_resid_im:
                     self.update_smear_im(res)
@@ -1410,7 +1421,7 @@ class PsfPhot:
                 self.pps.smear_const)
         
 
-    def compute_smearing_sa(self):
+    def compute_smearing_sa(self, target_fit=False):
         """Compute the smearing correction using stars from the
         star catalogue, and the given subarray PSF.
         """
@@ -1430,14 +1441,22 @@ class PsfPhot:
         for n in range(len(self.sa_sub)):
             xc = self.sa_xc[n]
             yc = yoff + self.sa_yc[n]
-            self.sa_smear[n] = self.sa_norm * self.pps.smear_fact * self.starcat.smear(xc, yc,
-                                                          self.sa_att[n,3],
-                                                          shape=shape,
-                                                          limflux=limflux)
+            if target_fit:
+                self.sa_smear[n] = self.sa_norm * self.pps.smear_fact * self.starcat.smear(xc, yc,
+                                                            self.sa_att[n,3],
+                                                            shape=shape,
+                                                            limflux=limflux,
+                                                            skip=[0]) # Don't use default target
+                self.sa_smear[n] += self.pps.smear_fact * np.nansum(self.sa_psf_cube[n], axis=0) # Use detailed model
+            else:
+                self.sa_smear[n] = self.sa_norm * self.pps.smear_fact * self.starcat.smear(xc, yc,
+                                                            self.sa_att[n,3],
+                                                            shape=shape,
+                                                            limflux=limflux)
         self.sa_smear /= (self.sa_hdr['EXPTIME']*self.sa_hdr['RO_FREQU'])
 
 
-    def compute_smearing_im(self):
+    def compute_smearing_im(self, target_fit=False):
         """Compute the smearing correction using stars from the
         star catalogue, and the given imagette PSF.
         """
@@ -1458,10 +1477,18 @@ class PsfPhot:
         for n in range(len(self.im_sub)):
             xc = self.im_xc[n]
             yc = yoff + self.im_yc[n]
-            self.im_smear[n] = self.im_norm * self.pps.smear_fact * self.starcat.smear(xc, yc,
+            if target_fit:
+                self.im_smear[n] = self.im_norm * self.pps.smear_fact * self.starcat.smear(xc, yc,
                                                           self.im_att[n,3],
                                                           shape=shape,
-                                                          limflux=limflux)
+                                                          limflux=limflux,
+                                                          skip=[0]) # Don't use default target    
+                self.im_smear[n] += self.pps.smear_fact * np.nansum(self.im_psf_cube[n], axis=0) # Use detailed model
+            else:
+                self.im_smear[n] = self.im_norm * self.pps.smear_fact * self.starcat.smear(xc, yc,
+                                                          self.im_att[n,3],
+                                                          shape=shape,
+                                                          limflux=limflux) # Don't use default target    
         self.im_smear /= (self.im_hdr['EXPTIME'] * self.sa_hdr['RO_FREQU'])
 
 

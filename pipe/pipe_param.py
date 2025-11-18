@@ -182,7 +182,7 @@ class PipeParam:
                                  # fitting for motion blur
         self.non_neg_lsq = False # Use non-negative least-square for motion blur
         
-        self.smear_fact = 5.65       # Factor to multiply smear with to get the proper correction
+        self.smear_fact = 5.665      # Factor to multiply smear with to get the proper correction
         self.smear_const = 2e-7      # Calibrated from 55 Cnc observations (0.1 * exptime / ro_feq)
         self.ccdsize = (1024,1024)   # Size of full detector in pixels. Used for
                                      # smearing correction.

@@ -208,12 +208,12 @@ class star_bg:
                  dxs=dxs, dys=dys, star_radii=star_radii)
 
 
-    def smear(self, x0, y0, rolldeg, shape, limflux=1e-2):
+    def smear(self, x0, y0, rolldeg, shape, limflux=1e-2, skip=[]):
         """Computes the smearing trail for all stars, including target.
         Returns a 1D array that can then be properly expanded to a 1D image.
         """
         im = self.image(x0, y0, rolldeg, shape=shape,
-                        skip=[], limflux=limflux)
+                        skip=skip, limflux=limflux)
         return np.sum(im, axis=0)
 
 
